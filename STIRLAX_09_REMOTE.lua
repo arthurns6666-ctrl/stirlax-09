@@ -10,7 +10,15 @@ pcall(function()
     VirtualUser=game:GetService("VirtualUser")
 end)
 
-local ENV=(type(getgenv)=="function" and getgenv()) or _G
+local function Global(name)
+    local ok,value=pcall(function()
+        return _G[name]
+    end)
+    return ok and value or nil
+end
+
+local getgenvFunction=Global("getgenv")
+local ENV=(type(getgenvFunction)=="function" and getgenvFunction()) or _G
 if type(ENV)=="table" and type(ENV.STIRLAX_MODZ_KILL)=="function" then
     pcall(ENV.STIRLAX_MODZ_KILL)
 end
@@ -29,8 +37,9 @@ end
 
 local GUI_PARENT=PG
 pcall(function()
-    if type(gethui)=="function" then
-        local hui=gethui()
+    local gethuiFunction=Global("gethui")
+    if type(gethuiFunction)=="function" then
+        local hui=gethuiFunction()
         if typeof(hui)=="Instance" then
             GUI_PARENT=hui
         end
@@ -83,7 +92,7 @@ local CFG={
     },
     aim={
         enabled=false,
-        activation="Hold",
+        activation="Always",
         showFov=true,
         marker=true,
         wall=false,
@@ -179,10 +188,12 @@ local STATE={
     presets={},
     flyUp=false,
     flyDown=false,
+    flyPadAuto=true,
     toolLast=0,
     espLast=0,
     targetCache={},
     targetCacheTime=0,
+    targetNotice=0,
     touches={},
     camFovActive=false
 }
@@ -800,8 +811,8 @@ local function ApplyLayout()
     STATE.mobile=touch or vp.X<780 or vp.Y<500
     local width,height,scale
     if STATE.mobile then
-        width=math.floor(math.clamp(vp.X-16,300,860))
-        height=math.floor(math.clamp(vp.Y-16,240,600))
+        width=math.floor(math.clamp(vp.X-12,260,860))
+        height=math.floor(math.clamp(vp.Y-12,220,620))
         scale=1
     else
         width,height=940,580
@@ -812,9 +823,12 @@ local function ApplyLayout()
     LAYOUT.width=width
     LAYOUT.height=height
     LAYOUT.header=headerHeight
-    LAYOUT.cardHeight=STATE.mobile and 58 or 54
+    LAYOUT.cardHeight=STATE.mobile and (width<360 and 68 or 62) or 54
     LAYOUT.scale=scale
     MainScale.Scale=scale
+    if STATE.flyPadAuto then
+        CFG.move.flyPad=STATE.mobile
+    end
 
     local fullHeight=STATE.minimized and (headerHeight+24) or height
     Main.Size=UDim2.fromOffset(width,fullHeight)
@@ -1158,7 +1172,7 @@ local function MakeToggle(section,label,default,onChange)
         ZIndex=6,
         Parent=card
     })
-    local obj={kind="toggle",id=label,Label=label,Default=default and true or false,State=false,Key=nil}
+    local obj={kind="toggle",id=label,Label=label,Default=default and true or false,State=false,Key=nil,KeyButton=nil}
     function obj.Set(value,silent)
         obj.State=value and true or false
         Tween(switch,.16,{BackgroundColor3=obj.State and C.red or C.off})
@@ -1201,7 +1215,7 @@ local function MakeButton(section,label,actionText,onClick)
     run.TextSize=10
     run.ZIndex=7
     S(run,C.red,1)
-    local obj={kind="button",id=label,Label=label,Key=nil}
+    local obj={kind="button",id=label,Label=label,Key=nil,KeyButton=nil}
     function obj.Trigger()
         Tween(run,.08,{BackgroundColor3=C.red})
         task.delay(.12,function()
@@ -1215,8 +1229,17 @@ local function MakeButton(section,label,actionText,onClick)
     Track(run.Activated:Connect(obj.Trigger))
     table.insert(STATE.layoutHooks,function()
         obj.KeyButton.Visible=not STATE.mobile
-        local right=STATE.mobile and 112 or 176
-        text.Size=UDim2.new(1,-(14+right),1,-6)
+        local compact=STATE.mobile and LAYOUT.cellWidth<330
+        if compact then
+            text.Position=UDim2.fromOffset(14,3)
+            text.Size=UDim2.new(1,-28,0,20)
+            run.Position=UDim2.new(1,-104,1,-34)
+        else
+            local right=STATE.mobile and 112 or 176
+            text.Position=UDim2.fromOffset(14,3)
+            text.Size=UDim2.new(1,-(14+right),1,-6)
+            run.Position=UDim2.new(1,-104,.5,-14)
+        end
     end)
     return obj
 end
@@ -1379,10 +1402,19 @@ local function MakeSelector(section,label,options,defaultValue,onChange)
         local compact=LAYOUT.cellWidth<330
         local valueWidth=compact and 92 or 112
         value.Size=UDim2.fromOffset(valueWidth,28)
-        right.Position=UDim2.new(1,-36,.5,-14)
-        value.Position=UDim2.new(1,-(36+4+valueWidth),.5,-14)
-        left.Position=UDim2.new(1,-(36+4+valueWidth+4+28),.5,-14)
-        text.Size=UDim2.new(1,-(14+36+4+valueWidth+4+28+8),1,-6)
+        if compact then
+            text.Position=UDim2.fromOffset(14,3)
+            text.Size=UDim2.new(1,-28,0,20)
+            right.Position=UDim2.new(1,-36,1,-32)
+            value.Position=UDim2.new(1,-(36+4+valueWidth),1,-32)
+            left.Position=UDim2.new(1,-(36+4+valueWidth+4+28),1,-32)
+        else
+            text.Position=UDim2.fromOffset(14,3)
+            text.Size=UDim2.new(1,-(14+36+4+valueWidth+4+28+8),1,-6)
+            right.Position=UDim2.new(1,-36,.5,-14)
+            value.Position=UDim2.new(1,-(36+4+valueWidth),.5,-14)
+            left.Position=UDim2.new(1,-(36+4+valueWidth+4+28),.5,-14)
+        end
     end)
     render()
     return Register(obj)
@@ -1397,7 +1429,7 @@ local function MakeKeybind(section,label,default,onSet)
     keyButton.TextSize=10
     keyButton.ZIndex=7
     S(keyButton,C.red,1)
-    local obj={kind="keybind",id=label,Label=label,Default=default,Key=default,IsMenuKey=true}
+    local obj={kind="keybind",id=label,Label=label,Default=default,DefaultKey=default,Key=default,IsMenuKey=true}
     function obj.SetKey(key)
         obj.Key=key
         keyButton.Text="["..KeyName(key).."]"
@@ -1430,6 +1462,7 @@ local function MakeKeybind(section,label,default,onSet)
         keyButton.TextColor3=C.gold
     end))
     keyButton.Text="["..KeyName(default).."]"
+    table.insert(STATE.keyed,obj)
     return Register(obj)
 end
 
@@ -2107,18 +2140,28 @@ function Engine.Targets()
             table.insert(output,model)
         end
     end
+    local function addFromInstance(instance,container)
+        if not instance or not instance:IsDescendantOf(workspace) then
+            return
+        end
+        local model=instance:IsA("Model") and instance or instance:FindFirstAncestorOfClass("Model")
+        if model and (not container or model:IsDescendantOf(container)) then
+            add(model)
+        end
+    end
     local folder=workspace:FindFirstChild("Targets")
     if folder then
-        for _,model in ipairs(folder:GetChildren()) do
-            add(model)
+        addFromInstance(folder,nil)
+        for _,instance in ipairs(folder:GetDescendants()) do
+            addFromInstance(instance,folder)
         end
     end
     local ok,tagged=pcall(function()
         return CollectionService:GetTagged("Target")
     end)
     if ok and type(tagged)=="table" then
-        for _,model in ipairs(tagged) do
-            add(model)
+        for _,instance in ipairs(tagged) do
+            addFromInstance(instance,nil)
         end
     end
     STATE.targetCache=output
@@ -2225,9 +2268,15 @@ function Engine.AimActive()
         return true
     end
     if mode=="Hold" then
+        if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+            return next(STATE.touches)~=nil
+        end
         return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
     end
     if mode=="HoldAny" then
+        if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+            return next(STATE.touches)~=nil
+        end
         return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) or UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
     end
     if mode=="Touch" then
@@ -2295,6 +2344,10 @@ function Engine.FindAimTarget(camera)
     end
     if not bestModel and STATE.skipModel then
         STATE.skipModel=nil
+    end
+    if not bestModel and os.clock()-STATE.targetNotice>8 then
+        STATE.targetNotice=os.clock()
+        Notify("AIM ASSIST","No hay objetivos autorizados visibles",C.dim)
     end
     return bestModel,bestPart,bestPoint
 end
@@ -2463,34 +2516,54 @@ function Esp.Corners(e,left,top,width,height,thickness,color)
 end
 
 function Esp.Bounds(camera,model,hum,root,head)
-    local topWorld,bottomWorld
-    if head and root then
-        topWorld=head.Position+Vector3.new(0,head.Size.Y*.5+.25,0)
-        local legs=3
-        if hum and hum.RigType==Enum.HumanoidRigType.R15 then
-            legs=hum.HipHeight+root.Size.Y*.5
-        end
-        bottomWorld=root.Position-Vector3.new(0,legs,0)
-    else
-        local ok,cf,size=pcall(function()
-            return model:GetBoundingBox()
-        end)
-        if not ok or not cf then
+    local ok,cf,size=pcall(function()
+        return model:GetBoundingBox()
+    end)
+    if not ok or not cf or not size then
+        if not root then
             return false
         end
-        topWorld=cf.Position+Vector3.new(0,size.Y*.5,0)
-        bottomWorld=cf.Position-Vector3.new(0,size.Y*.5,0)
+        cf=CFrame.new(root.Position)
+        size=Vector3.new(2,5,2)
     end
-    local topScreen=camera:WorldToViewportPoint(topWorld)
-    local bottomScreen=camera:WorldToViewportPoint(bottomWorld)
-    if topScreen.Z<=0 or bottomScreen.Z<=0 then
+    local viewport=camera.ViewportSize
+    local minX,minY=math.huge,math.huge
+    local maxX,maxY=-math.huge,-math.huge
+    local hasDepth=false
+    local hasScreenPoint=false
+    local corners={
+        Vector3.new(-1,-1,-1),Vector3.new(1,-1,-1),
+        Vector3.new(-1,1,-1),Vector3.new(1,1,-1),
+        Vector3.new(-1,-1,1),Vector3.new(1,-1,1),
+        Vector3.new(-1,1,1),Vector3.new(1,1,1)
+    }
+    for _,corner in ipairs(corners) do
+        local world=cf:PointToWorldSpace(Vector3.new(
+            corner.X*size.X*.5,
+            corner.Y*size.Y*.5,
+            corner.Z*size.Z*.5
+        ))
+        local screen=camera:WorldToViewportPoint(world)
+        if screen.Z>.05 then
+            hasDepth=true
+            minX=math.min(minX,screen.X)
+            minY=math.min(minY,screen.Y)
+            maxX=math.max(maxX,screen.X)
+            maxY=math.max(maxY,screen.Y)
+            if screen.X>=0 and screen.X<=viewport.X and screen.Y>=0 and screen.Y<=viewport.Y then
+                hasScreenPoint=true
+            end
+        end
+    end
+    if not hasDepth or not hasScreenPoint then
         return false
     end
-    local height=math.abs(bottomScreen.Y-topScreen.Y)*CFG.esp.boxScale
+    local height=math.abs(maxY-minY)*CFG.esp.boxScale
+    local width=math.abs(maxX-minX)*CFG.esp.boxScale
     height=math.clamp(height,6,4000)
-    local width=height*.55
-    local centerX=(topScreen.X+bottomScreen.X)*.5
-    local centerY=(topScreen.Y+bottomScreen.Y)*.5
+    width=math.clamp(width,4,3000)
+    local centerX=(minX+maxX)*.5
+    local centerY=(minY+maxY)*.5
     return true,centerX-width*.5,centerY-height*.5,width,height
 end
 
@@ -2506,6 +2579,10 @@ function Esp.Step()
     local wanted={}
     if any and camera then
         local targets=Engine.Targets()
+        if #targets==0 and now-STATE.targetNotice>8 then
+            STATE.targetNotice=now
+            Notify("ESP","Usa workspace.Targets o etiqueta Target",C.dim)
+        end
         for i=1,math.min(#targets,esp.maxTargets) do
             wanted[targets[i]]=true
         end
@@ -2539,11 +2616,9 @@ function Esp.Step()
                 if model==STATE.aimModel then
                     color=C.gold
                 end
-                local _,onScreen=camera:WorldToViewportPoint(root.Position)
+                local rootScreen,onScreen=camera:WorldToViewportPoint(root.Position)
                 local ok,left,top,width,height=false,0,0,0,0
-                if onScreen then
-                    ok,left,top,width,height=Esp.Bounds(camera,model,hum,root,head)
-                end
+                ok,left,top,width,height=Esp.Bounds(camera,model,hum,root,head)
                 if ok then
                     shown=true
                     e.arrow.Visible=false
@@ -2621,10 +2696,10 @@ function Esp.Step()
                     else
                         e.tracer.Visible=false
                     end
-                elseif esp.arrows then
+                elseif esp.arrows and (not ok or not onScreen or rootScreen.Z<=0) then
                     Esp.Hide(e)
                     local relative=camera.CFrame:PointToObjectSpace(root.Position)
-                    local direction=Vector2.new(relative.X,-relative.Y)
+                    local direction=Vector2.new(relative.X,-relative.Z)
                     if direction.Magnitude<.001 then
                         direction=Vector2.new(0,1)
                     end
@@ -2979,7 +3054,15 @@ function Move.Restore()
     workspace.Gravity=ORIGINAL.gravity
 end
 
-local Fly={active=false,velocity=Vector3.zero}
+local Fly={
+    active=false,
+    velocity=Vector3.zero,
+    hum=nil,
+    root=nil,
+    attachment=nil,
+    velocityObject=nil,
+    alignObject=nil
+}
 
 function Fly.Stop()
     local hum=Fly.hum
@@ -3212,11 +3295,6 @@ end
 
 local UIX={}
 
-if STATE.mobile and CFG.aim.activation=="Hold" then
-    CFG.aim.activation="Touch"
-end
-CFG.move.flyPad=STATE.mobile
-
 do
     STATE.buildPrefix="AIM"
     local content=Content(Pages.AIM)
@@ -3405,6 +3483,7 @@ do
         CFG.move.flyAccel=v
     end)
     MakeToggle(fly,"BOTONES SUBIR / BAJAR",CFG.move.flyPad,function(v)
+        STATE.flyPadAuto=false
         CFG.move.flyPad=v
         Fly.UpdatePad()
     end)
@@ -3613,9 +3692,12 @@ end
 
 local Presets={}
 local PRESET_FILE="STIRLAX_MODZ_PRESETS.json"
+local writefileFunction=Global("writefile")
+local readfileFunction=Global("readfile")
+local isfileFunction=Global("isfile")
 
 function Presets.CanUseFiles()
-    return type(writefile)=="function" and type(readfile)=="function"
+    return type(writefileFunction)=="function" and type(readfileFunction)=="function"
 end
 
 function Presets.LoadFile()
@@ -3623,10 +3705,10 @@ function Presets.LoadFile()
         return
     end
     local ok,data=pcall(function()
-        if type(isfile)=="function" and not isfile(PRESET_FILE) then
+        if type(isfileFunction)=="function" and not isfileFunction(PRESET_FILE) then
             return nil
         end
-        return HttpService:JSONDecode(readfile(PRESET_FILE))
+        return HttpService:JSONDecode(readfileFunction(PRESET_FILE))
     end)
     if ok and type(data)=="table" then
         STATE.presets=data
@@ -3638,7 +3720,7 @@ function Presets.SaveFile()
         return false
     end
     return pcall(function()
-        writefile(PRESET_FILE,HttpService:JSONEncode(STATE.presets))
+        writefileFunction(PRESET_FILE,HttpService:JSONEncode(STATE.presets))
     end)
 end
 
