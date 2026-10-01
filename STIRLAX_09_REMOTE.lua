@@ -22,15 +22,6 @@ if not PG then
     return
 end
 
-local ADMIN_USERNAMES={
-    gian12_10=true
-}
-
-if not ADMIN_USERNAMES[LP.Name:lower()] then
-    warn("[09] Usuario no autorizado: "..LP.Name..". Cuenta permitida: gian12_10")
-    return
-end
-
 local MW,MH=880,540
 
 local C={

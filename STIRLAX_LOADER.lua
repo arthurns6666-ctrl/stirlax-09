@@ -8,13 +8,6 @@ local function report(message)
     end
 end
 
-local players=game:GetService("Players")
-local localPlayer=players and players.LocalPlayer
-
-if localPlayer and localPlayer.Name:lower()~="gian12_10" then
-    report("usuario no autorizado: "..localPlayer.Name.."; el script está limitado a gian12_10")
-end
-
 local function fetch()
     local ok,body=pcall(function()
         return game:HttpGet(URL)
