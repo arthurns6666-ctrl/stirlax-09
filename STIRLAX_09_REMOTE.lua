@@ -1,391 +1,367 @@
-
 local Players=game:GetService("Players")
 local UIS=game:GetService("UserInputService")
 local TweenService=game:GetService("TweenService")
 local Lighting=game:GetService("Lighting")
 local CollectionService=game:GetService("CollectionService")
 local RunService=game:GetService("RunService")
-local VirtualUser
-pcall(function() VirtualUser=game:GetService("VirtualUser") end)
+local HttpService=game:GetService("HttpService")
+local VirtualUser=nil
+pcall(function()
+    VirtualUser=game:GetService("VirtualUser")
+end)
+
+local ENV=(type(getgenv)=="function" and getgenv()) or _G
+if type(ENV)=="table" and type(ENV.STIRLAX_MODZ_KILL)=="function" then
+    pcall(ENV.STIRLAX_MODZ_KILL)
+end
 
 local LP=Players.LocalPlayer
-
-if not LP then
-    warn("[09] LocalPlayer todavía no está disponible; ejecuta el código como LocalScript en Play.")
-    return
+while not LP do
+    task.wait()
+    LP=Players.LocalPlayer
 end
 
-local PG=LP:WaitForChild("PlayerGui",10)
-
+local PG=LP:FindFirstChildOfClass("PlayerGui") or LP:WaitForChild("PlayerGui",15)
 if not PG then
-    warn("[09] No se encontró PlayerGui después de 10 segundos.")
+    warn("[STIRLAX MODZ] No se encontro PlayerGui.")
     return
 end
 
-local MW,MH=880,540
-
-local C={
-    black=Color3.fromRGB(5,1,4),
-    glass=Color3.fromRGB(20,3,10),
-    card=Color3.fromRGB(31,6,16),
-    hover=Color3.fromRGB(78,10,28),
-    white=Color3.fromRGB(255,246,249),
-    gray=Color3.fromRGB(194,139,151),
-    blue=Color3.fromRGB(255,35,62),
-    green=Color3.fromRGB(255,65,87),
-    red=Color3.fromRGB(255,20,48),
-    gold=Color3.fromRGB(255,104,124),
-    yellow=Color3.fromRGB(255,42,67),
-    amber=Color3.fromRGB(255,76,96)
-}
-
-local UI={
-    redGlow=.78,
-    particleDensity=62,
-    particlesEnabled=true,
-    reduceMotion=false,
-    performanceMode="High",
-    espUpdateRate=30,
-    espMaxTargets=50,
-    espExcludeFriendly=false,
-    fpsMonitor=false,
-    targetCounter=false,
-    notificationDuration=2.6,
-    aimHoldMode=true,
-    aimToggleMode=false,
-    aimToggled=false,
-    aimDeadzone=0,
-    aimTargetLock=false,
-    aimSwitchTarget=false,
-    flyMobile=false,
-    worldFadeExclusion="Both",
-    toolWhitelist="Authorized",
-    compactLauncher=false,
-    lockMenu=false,
-    menuKey=Enum.KeyCode.RightShift,
-    targetCount=0,
-    fps=0,
-    frameCount=0,
-    fpsElapsed=0,
-    themeStrokes={},
-    sliders={},
-    selectors={},
-    presets={},
-    flyKeys={},
-    lockedAimPart=nil,
-    skipAimModel=nil,
-    originalEspLast=0,
-    stirlaxEspLast=0,
-    flyPad=nil
-}
-
-local function N(c,p)
-    local o=Instance.new(c)
-
-    for k,v in pairs(p) do
-        local ok,err=pcall(function()
-            o[k]=v
-        end)
-
-        if not ok then
-            warn("[09] Propiedad ignorada en "..c.."."..tostring(k)..": "..tostring(err))
+local GUI_PARENT=PG
+pcall(function()
+    if type(gethui)=="function" then
+        local hui=gethui()
+        if typeof(hui)=="Instance" then
+            GUI_PARENT=hui
         end
     end
+end)
 
-    return o
+for _,container in ipairs({PG,GUI_PARENT}) do
+    for _,oldName in ipairs({"09","STIRLAX_MODZ"}) do
+        local old=container:FindFirstChild(oldName)
+        if old then
+            pcall(function()
+                old:Destroy()
+            end)
+        end
+    end
 end
 
-local function R(o,n)
-    N("UICorner",{
-        CornerRadius=UDim.new(0,n or 10),
-        Parent=o
+local C={
+    black=Color3.fromRGB(6,2,4),
+    glass=Color3.fromRGB(20,4,9),
+    card=Color3.fromRGB(32,7,14),
+    cardHi=Color3.fromRGB(46,9,19),
+    hover=Color3.fromRGB(82,12,28),
+    white=Color3.fromRGB(255,246,248),
+    gray=Color3.fromRGB(196,146,156),
+    dim=Color3.fromRGB(122,78,88),
+    red=Color3.fromRGB(255,24,52),
+    redSoft=Color3.fromRGB(255,72,96),
+    redDeep=Color3.fromRGB(150,6,26),
+    gold=Color3.fromRGB(255,190,120),
+    green=Color3.fromRGB(70,235,120),
+    off=Color3.fromRGB(58,22,30)
+}
+
+local CFG={
+    ui={
+        redGlow=.78,
+        particles=true,
+        particleDensity=60,
+        reduceMotion=false,
+        performance="Alto",
+        notify=true,
+        notifyTime=2.6,
+        compactLauncher=false,
+        lockMenu=false,
+        menuKey=Enum.KeyCode.RightShift,
+        fpsMonitor=false,
+        targetCounter=false,
+        teamCheck=false
+    },
+    aim={
+        enabled=false,
+        activation="Hold",
+        showFov=true,
+        marker=true,
+        wall=false,
+        fov=150,
+        strength=.35,
+        range=650,
+        bone="Head",
+        priority="Center",
+        deadzone=0,
+        lock=false
+    },
+    esp={
+        boxes=false,
+        boxStyle="Corners",
+        names=false,
+        distance=false,
+        health=false,
+        healthText=false,
+        tracers=false,
+        tracerOrigin="Bottom",
+        arrows=false,
+        xray=false,
+        outline=false,
+        hpColor=true,
+        wall=false,
+        range=1500,
+        thickness=1.5,
+        boxScale=1,
+        xrayFill=.55,
+        rate=60,
+        maxTargets=40
+    },
+    move={
+        speed=false,
+        speedValue=32,
+        jump=false,
+        jumpValue=100,
+        infJump=false,
+        fly=false,
+        flySpeed=80,
+        flyVertical=60,
+        flyAccel=.25,
+        flyPad=false,
+        noclip=false,
+        gravity=false,
+        gravityValue=100,
+        clickTp=false
+    },
+    world={
+        fullbright=false,
+        noFog=false,
+        noShadows=false,
+        hour=false,
+        hourValue=14,
+        camFov=false,
+        camFovValue=90,
+        zoom=false,
+        fade=false,
+        fadeAmount=.55,
+        fadeExclude="Both"
+    },
+    extra={
+        spin=false,
+        spinSpeed=360,
+        antiAfk=false,
+        tool=false,
+        toolCooldown=.08,
+        toolFilter="Authorized"
+    }
+}
+
+local STATE={
+    alive=true,
+    menuOpen=false,
+    menuBusy=false,
+    minimized=false,
+    mobile=false,
+    fps=0,
+    frames=0,
+    fpsTime=0,
+    targetCount=0,
+    aimModel=nil,
+    aimPart=nil,
+    aimToggled=false,
+    skipModel=nil,
+    muteNotify=false,
+    listening=nil,
+    themeStrokes={},
+    controls={},
+    keyed={},
+    layoutHooks={},
+    conns={},
+    presets={},
+    flyUp=false,
+    flyDown=false,
+    toolLast=0,
+    espLast=0,
+    targetCache={},
+    targetCacheTime=0,
+    touches={},
+    camFovActive=false
+}
+
+local function Track(connection)
+    table.insert(STATE.conns,connection)
+    return connection
+end
+
+local errorTimes={}
+
+local function SafeCall(label,fn,...)
+    if type(fn)~="function" then
+        return true
+    end
+    local ok,err=pcall(fn,...)
+    if not ok then
+        local key=tostring(label)
+        local now=os.clock()
+        if not errorTimes[key] or now-errorTimes[key]>4 then
+            errorTimes[key]=now
+            warn("[STIRLAX MODZ] "..key..": "..tostring(err))
+        end
+    end
+    return ok
+end
+
+local function N(className,props)
+    local object=Instance.new(className)
+    local parent=nil
+    for key,value in pairs(props) do
+        if key=="Parent" then
+            parent=value
+        else
+            local ok,err=pcall(function()
+                object[key]=value
+            end)
+            if not ok then
+                warn("[STIRLAX MODZ] "..className.."."..tostring(key)..": "..tostring(err))
+            end
+        end
+    end
+    if parent then
+        object.Parent=parent
+    end
+    return object
+end
+
+local function R(object,radius)
+    return N("UICorner",{
+        CornerRadius=UDim.new(0,radius or 10),
+        Parent=object
     })
 end
 
-local function S(o,c,t)
+local function GlowTransparency()
+    return math.clamp(.86-CFG.ui.redGlow*.7,.05,.85)
+end
+
+local function S(object,color,thickness,themed)
     local stroke=N("UIStroke",{
-        Color=c or C.red,
-        Thickness=t or 1,
-        Transparency=math.clamp(.85-UI.redGlow*.7,.05,.8),
-        Parent=o
+        Color=color or C.red,
+        Thickness=thickness or 1,
+        Transparency=themed==false and .7 or GlowTransparency(),
+        ApplyStrokeMode=Enum.ApplyStrokeMode.Border,
+        Parent=object
     })
-    table.insert(UI.themeStrokes,stroke)
+    if themed~=false then
+        table.insert(STATE.themeStrokes,stroke)
+    end
     return stroke
 end
 
-UI.ApplyRedGlow=function()
-    for _,stroke in ipairs(UI.themeStrokes) do
-        if stroke and stroke.Parent then
-            stroke.Transparency=math.clamp(.85-UI.redGlow*.7,.05,.8)
-        end
-    end
-end
-
-local function T(p,v,z,pos,sz,col,font)
-    return N("TextLabel",{
-        Parent=p,
-        Text=v,
-        Size=z,
-        Position=pos or UDim2.new(),
-        BackgroundTransparency=1,
-        TextColor3=col or C.white,
-        Font=font or Enum.Font.Gotham,
-        TextSize=sz or 12,
-        TextXAlignment=Enum.TextXAlignment.Left,
-        TextYAlignment=Enum.TextYAlignment.Center
+local function G(object,a,b,rotation)
+    return N("UIGradient",{
+        Color=ColorSequence.new(a,b),
+        Rotation=rotation or 90,
+        Parent=object
     })
 end
 
-local function B(p,v,z,pos)
-    local b=N("TextButton",{
-        Parent=p,
-        Text=v,
-        Size=z,
-        Position=pos,
+local function T(parent,text,size,position,textSize,color,font)
+    return N("TextLabel",{
+        Text=text or "",
+        Size=size or UDim2.fromScale(1,1),
+        Position=position or UDim2.new(),
+        BackgroundTransparency=1,
+        TextColor3=color or C.white,
+        Font=font or Enum.Font.Gotham,
+        TextSize=textSize or 12,
+        TextXAlignment=Enum.TextXAlignment.Left,
+        TextYAlignment=Enum.TextYAlignment.Center,
+        TextTruncate=Enum.TextTruncate.AtEnd,
+        Parent=parent
+    })
+end
+
+local function B(parent,text,size,position)
+    local button=N("TextButton",{
+        Text=text or "",
+        Size=size or UDim2.fromOffset(80,28),
+        Position=position or UDim2.new(),
         BackgroundColor3=C.card,
         TextColor3=C.white,
         Font=Enum.Font.GothamBold,
         TextSize=11,
         AutoButtonColor=false,
-        BorderSizePixel=0
+        BorderSizePixel=0,
+        Parent=parent
     })
+    R(button,9)
+    return button
+end
 
-    R(b,8)
-
-    return b
+local function Tween(object,time,props,style,direction)
+    if not object or not object.Parent then
+        return nil
+    end
+    local duration=CFG.ui.reduceMotion and 0 or time
+    local ok,tween=pcall(function()
+        return TweenService:Create(object,TweenInfo.new(duration,style or Enum.EasingStyle.Quint,direction or Enum.EasingDirection.Out),props)
+    end)
+    if ok and tween then
+        tween:Play()
+        return tween
+    end
+    for key,value in pairs(props) do
+        pcall(function()
+            object[key]=value
+        end)
+    end
+    return nil
 end
 
 local function Root()
-    local ch=LP.Character
-    return ch and ch:FindFirstChild("HumanoidRootPart")
+    local character=LP.Character
+    return character and character:FindFirstChild("HumanoidRootPart")
 end
 
 local function Hum()
-    local ch=LP.Character
-    return ch and ch:FindFirstChildOfClass("Humanoid")
+    local character=LP.Character
+    return character and character:FindFirstChildOfClass("Humanoid")
 end
 
-local old=PG:FindFirstChild("09")
-
-if old then
-    old:Destroy()
-end
-
-
-local origLight={
-    Brightness=Lighting.Brightness,
-    ClockTime=Lighting.ClockTime,
-    FogEnd=Lighting.FogEnd,
-    GlobalShadows=Lighting.GlobalShadows
+local ORIGINAL={
+    brightness=Lighting.Brightness,
+    clockTime=Lighting.ClockTime,
+    fogEnd=Lighting.FogEnd,
+    fogStart=Lighting.FogStart,
+    shadows=Lighting.GlobalShadows,
+    ambient=Lighting.Ambient,
+    outdoor=Lighting.OutdoorAmbient,
+    gravity=workspace.Gravity,
+    zoom=LP.CameraMaxZoomDistance,
+    fov=workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70,
+    atmosphere={}
 }
 
-local origGravity=workspace.Gravity
-local origZoom=LP.CameraMaxZoomDistance
-local origFov=workspace.CurrentCamera
-    and workspace.CurrentCamera.FieldOfView
-    or 70
-
 local Gui=N("ScreenGui",{
-    Name="09",
+    Name="STIRLAX_MODZ",
     ResetOnSpawn=false,
     IgnoreGuiInset=true,
     ZIndexBehavior=Enum.ZIndexBehavior.Sibling,
-    Parent=PG
+    DisplayOrder=50
 })
-
+local parented=pcall(function()
+    Gui.Parent=GUI_PARENT
+end)
+if not parented or not Gui.Parent then
+    Gui.Parent=PG
+end
 
 local EspLayer=N("Frame",{
     Name="EspLayer",
     Size=UDim2.fromScale(1,1),
     BackgroundTransparency=1,
-    ZIndex=0,
+    ZIndex=1,
     Parent=Gui
 })
-
-local Main=N("Frame",{
-    Size=UDim2.fromOffset(MW,MH),
-    Position=UDim2.fromScale(.5,.5),
-    AnchorPoint=Vector2.new(.5,.5),
-    BackgroundColor3=C.black,
-    BackgroundTransparency=.12,
-    ClipsDescendants=true,
-    Active=true,
-    Draggable=true,
-    Parent=Gui
-})
-
-R(Main,18)
-S(Main,C.red,2)
-N("UIGradient",{
-    Color=ColorSequence.new({
-        ColorSequenceKeypoint.new(0,C.black),
-        ColorSequenceKeypoint.new(.55,C.glass),
-        ColorSequenceKeypoint.new(1,C.card)
-    }),
-    Rotation=135,
-    Parent=Main
-})
-
-local MainScale=N("UIScale",{
-    Scale=1,
-    Parent=Main
-})
-
-local Launcher=N("TextButton",{
-    Name="FloatingLauncher",
-    Text="",
-    AutoButtonColor=false,
-    Size=UDim2.fromOffset(184,50),
-    Position=UDim2.new(1,-204,1,-74),
-    BackgroundColor3=C.glass,
-    BackgroundTransparency=.08,
-    BorderSizePixel=0,
-    Active=true,
-    Draggable=true,
-    ZIndex=50,
-    Parent=Gui
-})
-
-R(Launcher,15)
-S(Launcher,C.red,1.5)
-N("UIGradient",{
-    Color=ColorSequence.new({
-        ColorSequenceKeypoint.new(0,C.glass),
-        ColorSequenceKeypoint.new(1,C.card)
-    }),
-    Rotation=135,
-    Parent=Launcher
-})
-
-local LauncherScale=N("UIScale",{
-    Scale=1,
-    Parent=Launcher
-})
-
-local LauncherAccent=N("Frame",{
-    Size=UDim2.fromOffset(4,30),
-    Position=UDim2.fromOffset(10,10),
-    BackgroundColor3=C.yellow,
-    BorderSizePixel=0,
-    ZIndex=51,
-    Parent=Launcher
-})
-R(LauncherAccent,3)
-
-local LauncherTitle=T(
-    Launcher,
-    "STIRLAX MODZ",
-    UDim2.new(1,-68,0,20),
-    UDim2.fromOffset(24,7),
-    13,
-    C.white,
-    Enum.Font.GothamBlack
-)
-LauncherTitle.ZIndex=51
-
-local LauncherSub=T(
-    Launcher,
-    "OPEN PANEL",
-    UDim2.new(1,-68,0,14),
-    UDim2.fromOffset(24,28),
-    9,
-    C.gray,
-    Enum.Font.GothamBold
-)
-LauncherSub.ZIndex=51
-
-local LauncherAction=B(
-    Launcher,
-    "OPEN",
-    UDim2.fromOffset(52,28),
-    UDim2.new(1,-62,.5,-14)
-)
-LauncherAction.BackgroundColor3=C.hover
-LauncherAction.TextColor3=C.blue
-LauncherAction.TextSize=10
-LauncherAction.ZIndex=52
-
-local NotificationLayer=N("Frame",{
-    Name="NotificationLayer",
-    Size=UDim2.fromScale(1,1),
-    BackgroundTransparency=1,
-    ZIndex=90,
-    Parent=Gui
-})
-
-UI.PerformanceOverlay=T(
-    Gui,
-    "",
-    UDim2.fromOffset(250,18),
-    UDim2.fromOffset(16,16),
-    10,
-    C.red,
-    Enum.Font.GothamBold
-)
-UI.PerformanceOverlay.Visible=false
-UI.PerformanceOverlay.ZIndex=89
-
-UI.notificationSerial=0
-
-local function Notify(title,body,color)
-    if not Gui.Parent then
-        return
-    end
-
-    UI.notificationSerial+=1
-    local slot=(UI.notificationSerial-1)%3
-    local card=N("Frame",{
-        Size=UDim2.fromOffset(278,58),
-        Position=UDim2.new(1,310,1,-22-slot*66),
-        AnchorPoint=Vector2.new(1,1),
-        BackgroundColor3=C.glass,
-        BackgroundTransparency=.05,
-        BorderSizePixel=0,
-        ZIndex=91,
-        Parent=NotificationLayer
-    })
-
-    R(card,12)
-    S(card,color or C.blue,1)
-
-    local bar=N("Frame",{
-        Size=UDim2.fromOffset(4,34),
-        Position=UDim2.fromOffset(10,12),
-        BackgroundColor3=color or C.blue,
-        BorderSizePixel=0,
-        ZIndex=92,
-        Parent=card
-    })
-    R(bar,3)
-
-    local titleLabel=T(card,title,UDim2.new(1,-30,0,18),UDim2.fromOffset(24,7),11,color or C.blue,Enum.Font.GothamBold)
-    titleLabel.ZIndex=92
-    local bodyLabel=T(card,body,UDim2.new(1,-30,0,22),UDim2.fromOffset(24,27),10,C.white,Enum.Font.GothamMedium)
-    bodyLabel.ZIndex=92
-
-    local inTween=TweenService:Create(card,TweenInfo.new(UI.reduceMotion and 0 or .22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-        Position=UDim2.new(1,-18,1,-22-slot*66)
-    })
-    inTween:Play()
-
-    task.delay(2.6,function()
-        if not card.Parent then
-            return
-        end
-        local outTween=TweenService:Create(card,TweenInfo.new(UI.reduceMotion and 0 or .2,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{
-            Position=UDim2.new(1,310,1,-22-slot*66)
-        })
-        outTween.Completed:Connect(function()
-            if card.Parent then
-                card:Destroy()
-            end
-        end)
-        outTween:Play()
-    end)
-end
-
-Main.Visible=false
-
 
 local FovCircle=N("Frame",{
     Name="FovCircle",
@@ -397,933 +373,1198 @@ local FovCircle=N("Frame",{
     ZIndex=2,
     Parent=Gui
 })
+N("UICorner",{CornerRadius=UDim.new(1,0),Parent=FovCircle})
+local FovStroke=N("UIStroke",{Color=C.red,Thickness=1.6,Transparency=.15,Parent=FovCircle})
 
-N("UICorner",{
-    CornerRadius=UDim.new(1,0),
-    Parent=FovCircle
+local NotifyLayer=N("Frame",{
+    Name="Notifications",
+    Size=UDim2.fromScale(1,1),
+    BackgroundTransparency=1,
+    ZIndex=60,
+    Parent=Gui
 })
 
-N("UIStroke",{
-    Color=C.blue,
-    Thickness=1.5,
-    Transparency=.2,
-    Parent=FovCircle
-})
+local Overlay=T(Gui,"",UDim2.fromOffset(260,20),UDim2.fromOffset(14,12),11,C.redSoft,Enum.Font.GothamBold)
+Overlay.ZIndex=59
+Overlay.Visible=false
+Overlay.TextStrokeTransparency=.35
+Overlay.TextStrokeColor3=C.black
 
+local notifySlots={}
+
+local function Notify(title,body,color)
+    if not CFG.ui.notify or STATE.muteNotify or not Gui.Parent then
+        return
+    end
+    local accent=color or C.red
+    local slot=1
+    for i=1,4 do
+        if not notifySlots[i] or not notifySlots[i].Parent then
+            slot=i
+            break
+        end
+        slot=i
+    end
+    if notifySlots[slot] and notifySlots[slot].Parent then
+        notifySlots[slot]:Destroy()
+    end
+    local width=STATE.mobile and 236 or 286
+    local y=-16-(slot-1)*62
+    local card=N("Frame",{
+        Size=UDim2.fromOffset(width,54),
+        Position=UDim2.new(1,width+30,1,y),
+        AnchorPoint=Vector2.new(1,1),
+        BackgroundColor3=C.glass,
+        BackgroundTransparency=.06,
+        BorderSizePixel=0,
+        ZIndex=61,
+        Parent=NotifyLayer
+    })
+    notifySlots[slot]=card
+    R(card,12)
+    S(card,accent,1.2,false)
+    G(card,C.cardHi,C.glass,90)
+    local bar=N("Frame",{
+        Size=UDim2.fromOffset(4,32),
+        Position=UDim2.fromOffset(10,11),
+        BackgroundColor3=accent,
+        BorderSizePixel=0,
+        ZIndex=62,
+        Parent=card
+    })
+    R(bar,2)
+    local titleLabel=T(card,title,UDim2.new(1,-30,0,18),UDim2.fromOffset(22,7),11,accent,Enum.Font.GothamBlack)
+    titleLabel.ZIndex=62
+    local bodyLabel=T(card,body,UDim2.new(1,-30,0,18),UDim2.fromOffset(22,27),10,C.white,Enum.Font.GothamMedium)
+    bodyLabel.ZIndex=62
+    Tween(card,.25,{Position=UDim2.new(1,-16,1,y)})
+    task.delay(math.max(CFG.ui.notifyTime,.8),function()
+        if not card.Parent then
+            return
+        end
+        local out=Tween(card,.2,{Position=UDim2.new(1,width+30,1,y)},Enum.EasingStyle.Quad,Enum.EasingDirection.In)
+        task.delay(CFG.ui.reduceMotion and 0 or .22,function()
+            if card.Parent then
+                card:Destroy()
+            end
+        end)
+        if not out and card.Parent then
+            card:Destroy()
+        end
+    end)
+end
+
+local Main=N("Frame",{
+    Name="Main",
+    Size=UDim2.fromOffset(940,580),
+    Position=UDim2.fromScale(.5,.5),
+    AnchorPoint=Vector2.new(.5,.5),
+    BackgroundColor3=C.black,
+    BackgroundTransparency=.08,
+    BorderSizePixel=0,
+    ClipsDescendants=true,
+    Active=true,
+    Visible=false,
+    ZIndex=20,
+    Parent=Gui
+})
+R(Main,18)
+S(Main,C.red,2)
+G(Main,C.glass,C.black,135)
+local MainScale=N("UIScale",{Scale=1,Parent=Main})
 
 local Space=N("Frame",{
+    Name="Particles",
     Size=UDim2.fromScale(1,1),
     BackgroundTransparency=1,
     ClipsDescendants=true,
-    ZIndex=0,
+    ZIndex=1,
     Parent=Main
 })
 
-UI.particles={}
+local RootFrame=N("Frame",{
+    Name="Root",
+    Size=UDim2.fromScale(1,1),
+    BackgroundTransparency=1,
+    ZIndex=2,
+    Parent=Main
+})
 
-UI.ParticleCount=function()
-    local factor=UI.performanceMode=="Low" and .45 or UI.performanceMode=="Medium" and .72 or 1
-    return math.clamp(math.floor(76*UI.particleDensity/100*factor),10,96)
+local Header=N("Frame",{
+    Name="Header",
+    Size=UDim2.new(1,-28,0,60),
+    Position=UDim2.fromOffset(14,12),
+    BackgroundColor3=C.glass,
+    BackgroundTransparency=.18,
+    BorderSizePixel=0,
+    ZIndex=3,
+    Parent=RootFrame
+})
+R(Header,14)
+S(Header,C.red,1)
+G(Header,C.cardHi,C.glass,0)
+
+local DragHandle=N("TextButton",{
+    Name="DragHandle",
+    Text="",
+    AutoButtonColor=false,
+    BackgroundTransparency=1,
+    Size=UDim2.fromScale(1,1),
+    ZIndex=3,
+    Parent=Header
+})
+
+local Logo=N("Frame",{
+    Size=UDim2.fromOffset(44,44),
+    Position=UDim2.fromOffset(10,8),
+    BackgroundColor3=C.red,
+    BorderSizePixel=0,
+    ZIndex=4,
+    Parent=Header
+})
+R(Logo,14)
+S(Logo,C.gold,1.2,false)
+G(Logo,C.red,C.redDeep,135)
+local LogoText=T(Logo,"S",UDim2.fromScale(1,1),nil,22,C.white,Enum.Font.GothamBlack)
+LogoText.TextXAlignment=Enum.TextXAlignment.Center
+LogoText.ZIndex=5
+
+local TitleLabel=T(Header,"STIRLAX MODZ",UDim2.fromOffset(150,24),UDim2.fromOffset(64,8),18,C.red,Enum.Font.GothamBlack)
+TitleLabel.ZIndex=4
+TitleLabel.TextStrokeColor3=C.black
+TitleLabel.TextStrokeTransparency=.4
+local SubLabel=T(Header,"DEVELOPER STIRLAX",UDim2.fromOffset(150,16),UDim2.fromOffset(64,33),10,C.gray,Enum.Font.GothamBold)
+SubLabel.ZIndex=4
+
+local TabBar=N("ScrollingFrame",{
+    Name="Tabs",
+    Size=UDim2.fromOffset(520,34),
+    Position=UDim2.fromOffset(226,13),
+    BackgroundTransparency=1,
+    BorderSizePixel=0,
+    ScrollBarThickness=0,
+    ScrollingDirection=Enum.ScrollingDirection.X,
+    CanvasSize=UDim2.new(),
+    ElasticBehavior=Enum.ElasticBehavior.WhenScrollable,
+    ZIndex=4,
+    Parent=Header
+})
+local TabList=N("UIListLayout",{
+    FillDirection=Enum.FillDirection.Horizontal,
+    Padding=UDim.new(0,5),
+    SortOrder=Enum.SortOrder.LayoutOrder,
+    VerticalAlignment=Enum.VerticalAlignment.Center,
+    Parent=TabBar
+})
+Track(TabList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    TabBar.CanvasSize=UDim2.fromOffset(TabList.AbsoluteContentSize.X/math.max(MainScale.Scale,.01)+4,0)
+end))
+
+local MinButton=B(Header,"—",UDim2.fromOffset(34,32),UDim2.new(1,-160,0,14))
+MinButton.ZIndex=5
+MinButton.TextColor3=C.white
+MinButton.TextSize=14
+S(MinButton,C.red,1)
+local CloseButton=B(Header,"X",UDim2.fromOffset(34,32),UDim2.new(1,-120,0,14))
+CloseButton.ZIndex=5
+CloseButton.TextColor3=C.white
+CloseButton.TextSize=12
+S(CloseButton,C.red,1)
+local KillButton=B(Header,"KILL",UDim2.fromOffset(70,32),UDim2.new(1,-80,0,14))
+KillButton.ZIndex=5
+KillButton.TextColor3=C.red
+KillButton.TextSize=11
+S(KillButton,C.red,1)
+
+local Body=N("Frame",{
+    Name="Body",
+    Size=UDim2.new(1,-28,1,-92),
+    Position=UDim2.fromOffset(14,80),
+    BackgroundTransparency=1,
+    ZIndex=3,
+    Parent=RootFrame
+})
+
+local PAGE_ORDER={"PEOPLE","AIM","ESP","MOVE","WORLD","SKINS","EXTRAS","CONFIG"}
+local PAGE_TITLE={
+    PEOPLE="JUGADORES",
+    AIM="AIM ASSIST",
+    ESP="ESP VISUAL",
+    MOVE="MOVIMIENTO",
+    WORLD="MUNDO Y CAMARA",
+    SKINS="SKINS",
+    EXTRAS="EXTRAS",
+    CONFIG="CONFIGURACION"
+}
+local PAGE_DESC={
+    PEOPLE="Lista de jugadores, perfil 3D, ropa y herramientas visibles.",
+    AIM="Asistencia de camara local hacia objetivos autorizados. Fuerza 1.00 = respuesta instantanea.",
+    ESP="Cada elemento se activa por separado. Solo modelos en workspace.Targets o con etiqueta Target.",
+    MOVE="Velocidad, saltos, vuelo estable, noclip, gravedad y teletransporte.",
+    WORLD="Iluminacion, niebla, sombras, hora, campo de vision, zoom y transparencia del mapa.",
+    SKINS="Skins locales para tu personaje y para la vista previa 3D.",
+    EXTRAS="Funciones secundarias: giro, anti AFK, tool assist y monitores en pantalla.",
+    CONFIG="Tecla del menu, launcher, apariencia, rendimiento, filtros, presets y reinicio."
+}
+
+local Pages={}
+local PageTitles={}
+local PageDescs={}
+local Tabs={}
+
+for index,name in ipairs(PAGE_ORDER) do
+    local page=N("Frame",{
+        Name=name,
+        Size=UDim2.fromScale(1,1),
+        BackgroundColor3=C.glass,
+        BackgroundTransparency=.22,
+        BorderSizePixel=0,
+        Visible=false,
+        ZIndex=3,
+        Parent=Body
+    })
+    R(page,14)
+    S(page,C.red,1)
+    G(page,C.glass,C.black,90)
+    local title=T(page,PAGE_TITLE[name],UDim2.new(1,-36,0,24),UDim2.fromOffset(18,10),20,C.white,Enum.Font.GothamBlack)
+    title.ZIndex=4
+    local desc=T(page,PAGE_DESC[name],UDim2.new(1,-36,0,16),UDim2.fromOffset(18,36),10,C.gray,Enum.Font.GothamMedium)
+    desc.ZIndex=4
+    Pages[name]=page
+    PageTitles[name]=title
+    PageDescs[name]=desc
+
+    local tab=B(TabBar,name,UDim2.fromOffset(62,30))
+    tab.LayoutOrder=index
+    tab.TextSize=10
+    tab.ZIndex=5
+    tab.TextColor3=C.gray
+    S(tab,C.red,1)
+    Tabs[name]=tab
 end
 
-UI.ClearParticles=function()
-    for _,state in ipairs(UI.particles) do
-        if state.part and state.part.Parent then
-            state.part:Destroy()
+local Launcher=N("TextButton",{
+    Name="Launcher",
+    Text="",
+    AutoButtonColor=false,
+    Size=UDim2.fromOffset(190,50),
+    Position=UDim2.new(1,-206,1,-70),
+    BackgroundColor3=C.glass,
+    BackgroundTransparency=.04,
+    BorderSizePixel=0,
+    Active=true,
+    ZIndex=40,
+    Parent=Gui
+})
+R(Launcher,16)
+S(Launcher,C.red,1.6)
+G(Launcher,C.cardHi,C.glass,135)
+local LauncherDot=N("Frame",{
+    Size=UDim2.fromOffset(34,34),
+    Position=UDim2.fromOffset(8,8),
+    BackgroundColor3=C.red,
+    BorderSizePixel=0,
+    ZIndex=41,
+    Parent=Launcher
+})
+R(LauncherDot,11)
+G(LauncherDot,C.red,C.redDeep,135)
+local LauncherDotText=T(LauncherDot,"S",UDim2.fromScale(1,1),nil,18,C.white,Enum.Font.GothamBlack)
+LauncherDotText.TextXAlignment=Enum.TextXAlignment.Center
+LauncherDotText.ZIndex=42
+local LauncherTitle=T(Launcher,"STIRLAX MODZ",UDim2.new(1,-56,0,18),UDim2.fromOffset(50,8),13,C.red,Enum.Font.GothamBlack)
+LauncherTitle.ZIndex=41
+local LauncherSub=T(Launcher,"TOCA PARA ABRIR",UDim2.new(1,-56,0,14),UDim2.fromOffset(50,27),9,C.gray,Enum.Font.GothamBold)
+LauncherSub.ZIndex=41
+
+local Particles={}
+
+local function ParticleCount()
+    local factor=CFG.ui.performance=="Bajo" and .4 or CFG.ui.performance=="Medio" and .7 or 1
+    if STATE.mobile then
+        factor=factor*.7
+    end
+    return math.clamp(math.floor(80*CFG.ui.particleDensity/100*factor),0,90)
+end
+
+local function BuildParticles()
+    for _,p in ipairs(Particles) do
+        if p.frame and p.frame.Parent then
+            p.frame:Destroy()
         end
     end
-    table.clear(UI.particles)
-end
-
-UI.BuildParticles=function()
-    UI.ClearParticles()
-    for i=1,UI.ParticleCount() do
-        local part=N("Frame",{
-            Size=UDim2.fromOffset(math.random(2,5),math.random(2,5)),
+    table.clear(Particles)
+    for i=1,ParticleCount() do
+        local size=math.random(2,5)
+        local frame=N("Frame",{
+            Size=UDim2.fromOffset(size,size),
             Position=UDim2.fromScale(math.random(),math.random()),
-            BackgroundColor3=i%5==0 and C.gold or C.red,
-            BackgroundTransparency=math.random(22,68)/100,
+            AnchorPoint=Vector2.new(.5,.5),
+            BackgroundColor3=i%6==0 and C.gold or (i%2==0 and C.red or C.redSoft),
+            BackgroundTransparency=.4,
             BorderSizePixel=0,
-            Rotation=math.random(0,180),
             ZIndex=1,
             Parent=Space
         })
-        R(part,8)
-        local glow=S(part,C.red,1)
-        table.insert(UI.particles,{
-            part=part,
-            glow=glow,
+        R(frame,size)
+        table.insert(Particles,{
+            frame=frame,
             x=math.random(),
             y=math.random(),
-            vx=(math.random(-8,8)/1000),
-            vy=(math.random(3,15)/1000),
+            vx=math.random(-6,6)/1000,
+            vy=-math.random(2,10)/1000,
             phase=math.random()*6.28
         })
     end
 end
 
-UI.UpdateParticles=function(dt)
-    UI.frameCount+=1
-    UI.fpsElapsed+=dt
-    if UI.fpsElapsed>=1 then
-        UI.fps=math.floor(UI.frameCount/UI.fpsElapsed+.5)
-        UI.frameCount=0
-        UI.fpsElapsed=0
-    end
-
-    if UI.particlesEnabled and not UI.reduceMotion then
-        for _,state in ipairs(UI.particles) do
-            if state.part.Parent then
-                state.x=(state.x+state.vx*dt*60)%1
-                state.y=(state.y+state.vy*dt*60)%1
-                state.phase+=dt*2
-                state.part.Position=UDim2.fromScale(state.x,state.y)
-                state.part.Rotation=(state.part.Rotation+dt*12)%360
-                state.part.BackgroundTransparency=math.clamp(.48+math.sin(state.phase)*.22, .12, .82)
-                state.glow.Transparency=math.clamp(1-UI.redGlow*.65+math.sin(state.phase)*.08,.08,.9)
-                state.part.Visible=true
-            end
-        end
-    else
-        for _,state in ipairs(UI.particles) do
-            if state.part.Parent then
-                state.part.Visible=false
-            end
-        end
-    end
-
-    if UI.fpsMonitor or UI.targetCounter then
-        UI.PerformanceOverlay.Visible=true
-        UI.PerformanceOverlay.Text="FPS "..tostring(UI.fps).."  |  TARGETS "..tostring(UI.targetCount)
-    else
-        UI.PerformanceOverlay.Visible=false
-    end
-end
-
-UI.BuildParticles()
-
-local RootFrame=N("Frame",{
-    Size=UDim2.fromScale(1,1),
-    BackgroundTransparency=1,
-    ZIndex=3,
-    Parent=Main
-})
-
-
-local Header=N("Frame",{
-    Size=UDim2.new(1,-32,0,60),
-    Position=UDim2.fromOffset(16,14),
-    BackgroundColor3=C.glass,
-    BackgroundTransparency=.25,
-    ZIndex=4,
-    Parent=RootFrame
-})
-
-R(Header,13)
-S(Header,C.red,1)
-N("UIGradient",{
-    Color=ColorSequence.new({
-        ColorSequenceKeypoint.new(0,C.glass),
-        ColorSequenceKeypoint.new(1,C.card)
-    }),
-    Rotation=0,
-    Parent=Header
-})
-
-
-UI.Logo=N("Frame",{
-    Size=UDim2.fromOffset(46,46),
-    Position=UDim2.fromOffset(16,7),
-    BackgroundColor3=C.red,
-    BackgroundTransparency=.08,
-    BorderSizePixel=0,
-    ZIndex=5,
-    Parent=Header
-})
-R(UI.Logo,23)
-S(UI.Logo,C.gold,1.5)
-N("UIGradient",{
-    Color=ColorSequence.new({
-        ColorSequenceKeypoint.new(0,C.red),
-        ColorSequenceKeypoint.new(1,C.card)
-    }),
-    Rotation=135,
-    Parent=UI.Logo
-})
-UI.LogoText=T(UI.Logo,"S",UDim2.fromScale(1,1),nil,22,C.white,Enum.Font.GothamBlack)
-UI.LogoText.TextXAlignment=Enum.TextXAlignment.Center
-UI.LogoText.ZIndex=6
-
-T(
-    Header,
-    "STIRLAX MODZ",
-    UDim2.fromOffset(140,22),
-    UDim2.fromOffset(76,9),
-    15,
-    C.red,
-    Enum.Font.GothamBlack
-)
-
-T(
-    Header,
-    "DEVELOPER STIRLAX",
-    UDim2.fromOffset(120,18),
-    UDim2.fromOffset(76,31),
-    11,
-    C.gray,
-    Enum.Font.GothamBold
-)
-
-local tabs={}
-local names={
-    "PEOPLE",
-    "MISC",
-    "OG",
-    "ESP",
-    "SKINS",
-    "EXTRAS",
-    "STIRLAX",
-    "PERF",
-    "CONFIG"
-}
-
-local tabLabels={
-    PERF="PERF",
-    CONFIG="CONFIG"
-}
-
-for i,n in ipairs(names) do
-    local b=B(
-        Header,
-        n,
-        UDim2.fromOffset(54,30),
-        UDim2.fromOffset(230+(i-1)*54,15)
-    )
-
-    b.Text=tabLabels[n] or n
-    b.TextSize=9
-    tabs[n]=b
-end
-
-tabs.PEOPLE.BackgroundColor3=C.hover
-
-local kill=B(
-    Header,
-    "KILL SCRIPT",
-    UDim2.fromOffset(92,30),
-    UDim2.new(1,-104,0,15)
-)
-
-kill.TextColor3=C.red
-
-
-local Body=N("Frame",{
-    Size=UDim2.new(1,-32,1,-96),
-    Position=UDim2.fromOffset(16,82),
-    BackgroundTransparency=1,
-    ZIndex=4,
-    Parent=RootFrame
-})
-
-local People=N("Frame",{
-    Size=UDim2.fromScale(1,1),
-    BackgroundColor3=C.glass,
-    BackgroundTransparency=.3,
-    ZIndex=5,
-    Parent=Body
-})
-
-R(People,14)
-S(People,C.blue,1)
-
-local List=N("ScrollingFrame",{
-    Size=UDim2.new(0,200,1,-58),
-    Position=UDim2.fromOffset(14,44),
-    BackgroundTransparency=1,
-    BorderSizePixel=0,
-    ScrollBarThickness=3,
-    ScrollBarImageColor3=C.blue,
-    CanvasSize=UDim2.new(),
-    ZIndex=6,
-    Parent=People
-})
-
-local LL=N("UIListLayout",{
-    Padding=UDim.new(0,6),
-    Parent=List
-})
-
-LL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    List.CanvasSize=UDim2.fromOffset(
-        0,
-        LL.AbsoluteContentSize.Y+10
-    )
-end)
-
-T(
-    People,
-    "PEOPLE",
-    UDim2.fromOffset(180,25),
-    UDim2.fromOffset(16,10),
-    15,
-    C.white,
-    Enum.Font.GothamBold
-)
-
-
-local Info=N("Frame",{
-    Size=UDim2.new(1,-232,1,-20),
-    Position=UDim2.fromOffset(218,10),
-    BackgroundColor3=C.glass,
-    BackgroundTransparency=.35,
-    ZIndex=5,
-    Parent=People
-})
-
-R(Info,14)
-S(Info,C.blue,1)
-
-T(
-    Info,
-    "PERFIL 3D",
-    UDim2.fromOffset(200,25),
-    UDim2.fromOffset(16,8),
-    14,
-    C.blue,
-    Enum.Font.GothamBold
-)
-
-local View=N("ViewportFrame",{
-    Size=UDim2.fromOffset(250,250),
-    Position=UDim2.fromOffset(16,40),
-    BackgroundColor3=C.black,
-    Ambient=Color3.fromRGB(200,200,210),
-    LightColor=C.white,
-    LightDirection=Vector3.new(-1,-1,-1),
-    ZIndex=7,
-    Parent=Info
-})
-
-R(View,14)
-S(View,C.blue,1)
-
-local Camera=N("Camera",{
-    Parent=View
-})
-
-View.CurrentCamera=Camera
-
-local Name=T(
-    Info,
-    "Selecciona un jugador",
-    UDim2.new(1,-298,0,26),
-    UDim2.fromOffset(282,44),
-    19,
-    C.white,
-    Enum.Font.GothamBold
-)
-
-local User=T(
-    Info,
-    "@-",
-    UDim2.new(1,-298,0,18),
-    UDim2.fromOffset(282,74),
-    11,
-    C.blue
-)
-
-local State=T(
-    Info,
-    "estado: --",
-    UDim2.new(1,-298,0,18),
-    UDim2.fromOffset(282,96),
-    11,
-    C.green
-)
-
-local DetailList=N("ScrollingFrame",{
-    Size=UDim2.new(1,-298,1,-140),
-    Position=UDim2.fromOffset(282,126),
-    BackgroundTransparency=1,
-    BorderSizePixel=0,
-    ScrollBarThickness=3,
-    CanvasSize=UDim2.new(),
-    ZIndex=7,
-    Parent=Info
-})
-
-local DL=N("UIListLayout",{
-    Padding=UDim.new(0,6),
-    Parent=DetailList
-})
-
-DL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    DetailList.CanvasSize=UDim2.fromOffset(
-        0,
-        DL.AbsoluteContentSize.Y+10
-    )
-end)
-
-
-local Pages={}
-
-local PageDesc={
-    MISC="Aim, movimiento, camara y utilidades. Clic en [NONE] para asignar tecla (Esc o Backspace la quita).",
-    ESP="Solo afecta modelos en workspace.Targets o con la etiqueta Target.",
-    SKINS="Skins Among Us y Free Fire. Solo las ves tu en tu personaje.",
-    STIRLAX="Motores STIRLAX adicionales: ESP autorizada, aim local, fly estable y utilidades.",
-    PERF="Rendimiento, partículas rojas, FPS y frecuencia de actualización.",
-    CONFIG="Configuración del menú, tecla personalizada, presets y controles móviles."
-}
-
-for _,n in ipairs({
-    "MISC",
-    "OG",
-    "ESP",
-    "SKINS",
-    "EXTRAS",
-    "STIRLAX",
-    "PERF",
-    "CONFIG"
-}) do
-    local page=N("Frame",{
-        Size=UDim2.fromScale(1,1),
-        BackgroundColor3=C.glass,
-        BackgroundTransparency=.3,
-        Visible=false,
-        ZIndex=10,
-        Parent=Body
-    })
-
-    R(page,14)
-    S(page,C.blue,1)
-
-    T(
-        page,
-        n=="STIRLAX" and "STIRLAX MODZ" or n,
-        UDim2.fromOffset(300,28),
-        UDim2.fromOffset(20,10),
-        22,
-        C.white,
-        Enum.Font.GothamBlack
-    )
-
-    if PageDesc[n] then
-        T(
-            page,
-            PageDesc[n],
-            UDim2.fromOffset(800,16),
-            UDim2.fromOffset(20,40),
-            10,
-            C.gray
-        )
-    end
-
-    Pages[n]=page
-end
-
-
-local conns={}
-
-local function Track(c)
-    table.insert(conns,c)
-    return c
-end
-
-local function SafeCallback(label,callback,...)
-    if not callback then
-        return true
-    end
-
-    local ok,err=pcall(callback,...)
-    if not ok then
-        warn("[09] Error en callback "..tostring(label)..": "..tostring(err))
-    end
-    return ok
-end
-
-local function SafeDisconnect(connection)
-    if connection then
-        pcall(function()
-            connection:Disconnect()
-        end)
-    end
-end
-
-UI.particleConnection=Track(RunService.RenderStepped:Connect(UI.UpdateParticles))
-
-local responsiveViewportConnection=nil
-local function RefreshResponsive()
-    local cam=workspace.CurrentCamera
-    if not cam then
+local function UpdateParticles(dt)
+    if not Main.Visible then
         return
     end
+    local enabled=CFG.ui.particles and not CFG.ui.reduceMotion
+    for _,p in ipairs(Particles) do
+        local frame=p.frame
+        if frame.Parent then
+            if enabled then
+                p.x=(p.x+p.vx*dt*60)%1
+                p.y=(p.y+p.vy*dt*60)%1
+                p.phase=p.phase+dt*2
+                frame.Position=UDim2.fromScale(p.x,p.y)
+                frame.BackgroundTransparency=math.clamp(.5+math.sin(p.phase)*.25,.15,.85)
+                frame.Visible=true
+            else
+                frame.Visible=false
+            end
+        end
+    end
+end
 
-    local viewport=cam.ViewportSize
-    local scale=math.clamp(
-        math.min(viewport.X/(MW+24),viewport.Y/(MH+24)),
-        .38,
-        1
-    )
+local function ApplyGlow()
+    local value=GlowTransparency()
+    for _,stroke in ipairs(STATE.themeStrokes) do
+        if stroke.Parent then
+            stroke.Transparency=value
+        end
+    end
+end
 
+local LAYOUT={
+    width=940,
+    height=580,
+    header=60,
+    cardHeight=54,
+    columns=2,
+    cellWidth=430,
+    scale=1
+}
+
+local function Viewport()
+    local camera=workspace.CurrentCamera
+    if camera then
+        local size=camera.ViewportSize
+        if size.X>10 and size.Y>10 then
+            return size
+        end
+    end
+    return Vector2.new(1280,720)
+end
+
+local function LayoutLauncher()
+    local vp=Viewport()
+    if CFG.ui.compactLauncher then
+        Launcher.Size=UDim2.fromOffset(54,54)
+        LauncherDot.Position=UDim2.fromOffset(10,10)
+        LauncherTitle.Visible=false
+        LauncherSub.Visible=false
+    else
+        local width=STATE.mobile and 160 or 190
+        Launcher.Size=UDim2.fromOffset(width,50)
+        LauncherDot.Position=UDim2.fromOffset(8,8)
+        LauncherTitle.Visible=true
+        LauncherSub.Visible=true
+        LauncherSub.Text=STATE.mobile and "TOCA PARA ABRIR" or "CLIC O "..(CFG.ui.menuKey and CFG.ui.menuKey.Name:upper() or "SIN TECLA")
+    end
+    local pos=Launcher.Position
+    local size=Launcher.Size
+    local x=pos.X.Scale*vp.X+pos.X.Offset
+    local y=pos.Y.Scale*vp.Y+pos.Y.Offset
+    x=math.clamp(x,4,math.max(4,vp.X-size.X.Offset-4))
+    y=math.clamp(y,4,math.max(4,vp.Y-size.Y.Offset-4))
+    Launcher.Position=UDim2.fromOffset(x,y)
+end
+
+local function ApplyLayout()
+    local vp=Viewport()
+    local touch=UIS.TouchEnabled and not UIS.KeyboardEnabled
+    STATE.mobile=touch or vp.X<780 or vp.Y<500
+    local width,height,scale
+    if STATE.mobile then
+        width=math.floor(math.clamp(vp.X-16,300,860))
+        height=math.floor(math.clamp(vp.Y-16,240,600))
+        scale=1
+    else
+        width,height=940,580
+        scale=math.clamp(math.min((vp.X-40)/width,(vp.Y-40)/height),.62,1)
+    end
+    local twoRows=STATE.mobile and width<620
+    local headerHeight=twoRows and 92 or (STATE.mobile and 50 or 60)
+    LAYOUT.width=width
+    LAYOUT.height=height
+    LAYOUT.header=headerHeight
+    LAYOUT.cardHeight=STATE.mobile and 58 or 54
+    LAYOUT.scale=scale
     MainScale.Scale=scale
-    LauncherScale.Scale=math.clamp(scale*1.08,.82,1.08)
-end
 
-local function BindResponsiveCamera()
-    if responsiveViewportConnection then
-        SafeDisconnect(responsiveViewportConnection)
-        responsiveViewportConnection=nil
+    local fullHeight=STATE.minimized and (headerHeight+24) or height
+    Main.Size=UDim2.fromOffset(width,fullHeight)
+    Header.Size=UDim2.new(1,-24,0,headerHeight)
+    Header.Position=UDim2.fromOffset(12,12)
+    Body.Position=UDim2.fromOffset(12,headerHeight+20)
+    Body.Size=UDim2.new(1,-24,1,-(headerHeight+32))
+    Body.Visible=not STATE.minimized
+
+    local buttonSize=STATE.mobile and 36 or 32
+    local killWidth=STATE.mobile and 58 or 70
+    local headerWidth=width-24
+    local topRowY=STATE.mobile and 7 or 14
+    KillButton.Size=UDim2.fromOffset(killWidth,buttonSize)
+    KillButton.Position=UDim2.new(1,-(killWidth+8),0,topRowY)
+    CloseButton.Size=UDim2.fromOffset(buttonSize,buttonSize)
+    CloseButton.Position=UDim2.new(1,-(killWidth+8+buttonSize+6),0,topRowY)
+    MinButton.Size=UDim2.fromOffset(buttonSize,buttonSize)
+    MinButton.Position=UDim2.new(1,-(killWidth+8+(buttonSize+6)*2),0,topRowY)
+    local buttonsWidth=killWidth+8+(buttonSize+6)*2+8
+
+    if STATE.mobile then
+        Logo.Size=UDim2.fromOffset(36,36)
+        Logo.Position=UDim2.fromOffset(8,7)
+        LogoText.TextSize=18
+        TitleLabel.Position=UDim2.fromOffset(52,7)
+        TitleLabel.Size=UDim2.fromOffset(130,20)
+        TitleLabel.TextSize=15
+        SubLabel.Position=UDim2.fromOffset(52,27)
+        SubLabel.Size=UDim2.fromOffset(130,14)
+        SubLabel.TextSize=9
+        if twoRows then
+            TabBar.Position=UDim2.fromOffset(8,52)
+            TabBar.Size=UDim2.fromOffset(headerWidth-16,36)
+        else
+            TabBar.Position=UDim2.fromOffset(190,7)
+            TabBar.Size=UDim2.fromOffset(math.max(120,headerWidth-190-buttonsWidth),36)
+        end
+    else
+        Logo.Size=UDim2.fromOffset(44,44)
+        Logo.Position=UDim2.fromOffset(10,8)
+        LogoText.TextSize=22
+        TitleLabel.Position=UDim2.fromOffset(64,8)
+        TitleLabel.Size=UDim2.fromOffset(150,24)
+        TitleLabel.TextSize=18
+        SubLabel.Position=UDim2.fromOffset(64,33)
+        SubLabel.Size=UDim2.fromOffset(150,16)
+        SubLabel.TextSize=10
+        TabBar.Position=UDim2.fromOffset(222,13)
+        TabBar.Size=UDim2.fromOffset(math.max(200,headerWidth-222-buttonsWidth),34)
     end
 
-    local cam=workspace.CurrentCamera
-    if cam then
-        responsiveViewportConnection=cam:GetPropertyChangedSignal("ViewportSize"):Connect(RefreshResponsive)
-        Track(responsiveViewportConnection)
+    local tabWidth=STATE.mobile and 74 or 62
+    local tabHeight=STATE.mobile and 34 or 30
+    for _,tab in pairs(Tabs) do
+        tab.Size=UDim2.fromOffset(tabWidth,tabHeight)
+        tab.TextSize=STATE.mobile and 11 or 10
+    end
+    TabBar.CanvasSize=UDim2.fromOffset(#PAGE_ORDER*(tabWidth+5)+4,0)
+
+    for name,title in pairs(PageTitles) do
+        title.TextSize=STATE.mobile and 16 or 20
+        title.Size=UDim2.new(1,-36,0,STATE.mobile and 20 or 24)
+        title.Position=UDim2.fromOffset(16,STATE.mobile and 8 or 10)
+        local desc=PageDescs[name]
+        desc.Visible=not (STATE.mobile and height<330)
+        desc.Position=UDim2.fromOffset(16,STATE.mobile and 29 or 36)
+        desc.TextSize=STATE.mobile and 9 or 10
     end
 
-    RefreshResponsive()
+    local contentWidth=width-24-28-10
+    local columns=contentWidth>=620 and 2 or 1
+    LAYOUT.columns=columns
+    LAYOUT.cellWidth=math.floor((contentWidth-(columns-1)*10)/columns)
+
+    for _,hook in ipairs(STATE.layoutHooks) do
+        SafeCall("layout",hook)
+    end
+
+    LayoutLauncher()
+
+    local pos=Main.Position
+    local x=pos.X.Scale*vp.X+pos.X.Offset
+    local y=pos.Y.Scale*vp.Y+pos.Y.Offset
+    local halfW=width*scale/2
+    local halfH=fullHeight*scale/2
+    x=math.clamp(x,math.min(halfW,vp.X/2),math.max(vp.X-halfW,vp.X/2))
+    y=math.clamp(y,math.min(halfH,vp.Y/2),math.max(vp.Y-halfH,vp.Y/2))
+    Main.Position=UDim2.fromOffset(x,y)
 end
 
-Track(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(BindResponsiveCamera))
-BindResponsiveCamera()
+local function MakeDraggable(handle,target,onTap)
+    local dragging=false
+    local moved=false
+    local startInput=nil
+    local startPos=nil
+    local activeInput=nil
+    Track(handle.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true
+            moved=false
+            activeInput=input
+            startInput=input.Position
+            local vp=Viewport()
+            local pos=target.Position
+            startPos=Vector2.new(pos.X.Scale*vp.X+pos.X.Offset,pos.Y.Scale*vp.Y+pos.Y.Offset)
+        end
+    end))
+    Track(UIS.InputChanged:Connect(function(input)
+        if not dragging or not startInput then
+            return
+        end
+        if input.UserInputType~=Enum.UserInputType.MouseMovement and input.UserInputType~=Enum.UserInputType.Touch then
+            return
+        end
+        if input.UserInputType==Enum.UserInputType.Touch and activeInput and activeInput.UserInputType==Enum.UserInputType.Touch and input~=activeInput then
+            return
+        end
+        local delta=Vector2.new(input.Position.X-startInput.X,input.Position.Y-startInput.Y)
+        if delta.Magnitude>6 then
+            moved=true
+        end
+        if moved and not CFG.ui.lockMenu then
+            local vp=Viewport()
+            local x=math.clamp(startPos.X+delta.X,0,vp.X)
+            local y=math.clamp(startPos.Y+delta.Y,0,vp.Y)
+            target.Position=UDim2.fromOffset(x,y)
+        end
+    end))
+    Track(UIS.InputEnded:Connect(function(input)
+        if not dragging then
+            return
+        end
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            if input.UserInputType==Enum.UserInputType.Touch and activeInput and input~=activeInput then
+                return
+            end
+            dragging=false
+            activeInput=nil
+            if not moved and onTap then
+                SafeCall("tap",onTap)
+            end
+            if target==Launcher then
+                LayoutLauncher()
+            end
+        end
+    end))
+end
 
+local function KeyName(key)
+    return key and key.Name:upper() or "NONE"
+end
 
-local Toggles={}
-local listening=nil
-
-local function Card(parent,order,pos)
-    local card=N("Frame",{
-        Size=UDim2.fromOffset(392,54),
-        Position=pos or UDim2.new(),
-        BackgroundColor3=C.card,
+local function Content(page)
+    local scroll=N("ScrollingFrame",{
+        Name="Content",
+        Size=UDim2.new(1,-24,1,-68),
+        Position=UDim2.fromOffset(12,58),
+        BackgroundTransparency=1,
         BorderSizePixel=0,
-        LayoutOrder=order or 0,
-        Parent=parent
+        ScrollBarThickness=4,
+        ScrollBarImageColor3=C.red,
+        ScrollingDirection=Enum.ScrollingDirection.Y,
+        CanvasSize=UDim2.new(),
+        ZIndex=4,
+        Parent=page
     })
+    N("UIPadding",{
+        PaddingRight=UDim.new(0,8),
+        PaddingBottom=UDim.new(0,10),
+        PaddingLeft=UDim.new(0,2),
+        PaddingTop=UDim.new(0,2),
+        Parent=scroll
+    })
+    local list=N("UIListLayout",{
+        Padding=UDim.new(0,12),
+        SortOrder=Enum.SortOrder.LayoutOrder,
+        Parent=scroll
+    })
+    local content={scroll=scroll,list=list,order=0,sections={}}
+    function content.Refresh()
+        local total=0
+        for _,section in ipairs(content.sections) do
+            total=total+section.height
+        end
+        total=total+math.max(#content.sections-1,0)*12+16
+        scroll.CanvasSize=UDim2.fromOffset(0,total)
+    end
+    table.insert(STATE.layoutHooks,function()
+        local compact=STATE.mobile and LAYOUT.height<330
+        local top=STATE.mobile and (compact and 34 or 48) or 58
+        scroll.Position=UDim2.fromOffset(12,top)
+        scroll.Size=UDim2.new(1,-24,1,-(top+8))
+        scroll.ScrollBarThickness=STATE.mobile and 6 or 4
+        content.Refresh()
+    end)
+    return content
+end
 
+local function Section(content,title)
+    content.order=content.order+1
+    local frame=N("Frame",{
+        Name=title,
+        Size=UDim2.new(1,0,0,40),
+        BackgroundTransparency=1,
+        LayoutOrder=content.order,
+        ZIndex=4,
+        Parent=content.scroll
+    })
+    local label=T(frame,title,UDim2.new(1,-4,0,18),UDim2.fromOffset(4,0),11,C.redSoft,Enum.Font.GothamBlack)
+    label.ZIndex=5
+    local line=N("Frame",{
+        Size=UDim2.new(1,-4,0,1),
+        Position=UDim2.fromOffset(2,21),
+        BackgroundColor3=C.red,
+        BackgroundTransparency=.55,
+        BorderSizePixel=0,
+        ZIndex=5,
+        Parent=frame
+    })
+    G(line,C.red,C.black,0)
+    local holder=N("Frame",{
+        Name="Cards",
+        Size=UDim2.new(1,0,0,10),
+        Position=UDim2.fromOffset(0,30),
+        BackgroundTransparency=1,
+        ZIndex=4,
+        Parent=frame
+    })
+    local grid=N("UIGridLayout",{
+        CellSize=UDim2.fromOffset(LAYOUT.cellWidth,LAYOUT.cardHeight),
+        CellPadding=UDim2.fromOffset(10,8),
+        SortOrder=Enum.SortOrder.LayoutOrder,
+        Parent=holder
+    })
+    local section={frame=frame,holder=holder,grid=grid,count=0,height=40,content=content}
+    function section.Resize()
+        local rows=math.ceil(section.count/math.max(LAYOUT.columns,1))
+        local h=rows*LAYOUT.cardHeight+math.max(rows-1,0)*8
+        holder.Size=UDim2.new(1,0,0,h)
+        section.height=30+h
+        frame.Size=UDim2.new(1,0,0,section.height)
+        content.Refresh()
+    end
+    table.insert(content.sections,section)
+    table.insert(STATE.layoutHooks,function()
+        grid.CellSize=UDim2.fromOffset(LAYOUT.cellWidth,LAYOUT.cardHeight)
+        section.Resize()
+    end)
+    return section
+end
+
+local function Card(section)
+    section.count=section.count+1
+    local card=N("Frame",{
+        BackgroundColor3=C.card,
+        BackgroundTransparency=.08,
+        BorderSizePixel=0,
+        LayoutOrder=section.count,
+        ZIndex=5,
+        Parent=section.holder
+    })
     R(card,12)
-
-    N("UIStroke",{
-        Color=C.blue,
-        Thickness=1,
-        Transparency=.75,
-        Parent=card
-    })
-
+    S(card,C.red,1)
+    G(card,C.cardHi,C.card,90)
+    section.Resize()
     return card
 end
 
-local function Content(page,cw,ch,top)
-    local sc=N("ScrollingFrame",{
-        Size=UDim2.new(1,-40,1,-(top+12)),
-        Position=UDim2.fromOffset(20,top),
-        BackgroundTransparency=1,
-        BorderSizePixel=0,
-        ScrollBarThickness=3,
-        ScrollBarImageColor3=C.blue,
-        CanvasSize=UDim2.new(),
-        Parent=page
-    })
-
-    local grid=N("UIGridLayout",{
-        CellSize=UDim2.fromOffset(cw,ch),
-        CellPadding=UDim2.fromOffset(12,10),
-        SortOrder=Enum.SortOrder.LayoutOrder,
-        Parent=sc
-    })
-
-    grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        sc.CanvasSize=UDim2.fromOffset(
-            0,
-            grid.AbsoluteContentSize.Y+10
-        )
-    end)
-
-    return sc
+local function CardLabel(card,label,rightSpace)
+    local text=T(card,label,UDim2.new(1,-(14+rightSpace),1,-6),UDim2.fromOffset(14,3),11,C.white,Enum.Font.GothamBold)
+    text.TextWrapped=true
+    text.ZIndex=6
+    return text
 end
 
-local function AttachKey(card,obj,x)
-    local keyBtn=B(
-        card,
-        "[NONE]",
-        UDim2.fromOffset(70,24),
-        UDim2.new(1,x,.5,-12)
-    )
+local function Register(obj)
+    obj.id=(STATE.buildPrefix or "MENU").."/"..tostring(obj.Label)
+    table.insert(STATE.controls,obj)
+    return obj
+end
 
-    keyBtn.BackgroundColor3=C.hover
-    keyBtn.TextColor3=C.gray
-    keyBtn.TextSize=10
-
-    function obj.SetKey(k)
-        obj.Key=k
-
-        keyBtn.Text=k
-            and ("["..k.Name:upper().."]")
-            or "[NONE]"
-
-        keyBtn.TextColor3=k and C.blue or C.gray
+local function AttachKey(card,obj,offset)
+    local keyButton=B(card,"[NONE]",UDim2.fromOffset(66,24),UDim2.new(1,offset,.5,-12))
+    keyButton.BackgroundColor3=C.off
+    keyButton.TextColor3=C.dim
+    keyButton.TextSize=9
+    keyButton.ZIndex=7
+    obj.KeyButton=keyButton
+    obj.keyId=(STATE.buildPrefix or "MENU").."/"..tostring(obj.Label)
+    function obj.SetKey(key)
+        obj.Key=key
+        keyButton.Text="["..KeyName(key).."]"
+        keyButton.TextColor3=key and C.redSoft or C.dim
     end
-
-    keyBtn.Activated:Connect(function()
-        if listening==obj then
-            listening=nil
+    Track(keyButton.Activated:Connect(function()
+        if STATE.listening==obj then
+            STATE.listening=nil
             obj.SetKey(obj.Key)
-        else
-            if listening then
-                listening.SetKey(listening.Key)
-            end
-
-            listening=obj
-            keyBtn.Text="[...]"
-            keyBtn.TextColor3=C.gold
+            return
         end
-    end)
+        if STATE.listening and STATE.listening.SetKey then
+            STATE.listening.SetKey(STATE.listening.Key)
+        end
+        STATE.listening=obj
+        keyButton.Text="[...]"
+        keyButton.TextColor3=C.gold
+    end))
+    table.insert(STATE.keyed,obj)
 end
 
-local function MakeToggle(parent,order,label,default,onChange,pos)
-    local card=Card(parent,order,pos)
-
-    T(
-        card,
-        label,
-        UDim2.new(1,-150,1,0),
-        UDim2.fromOffset(14,0),
-        11,
-        C.white,
-        Enum.Font.GothamBold
-    )
-
-    local sw=N("TextButton",{
+local function MakeToggle(section,label,default,onChange)
+    local card=Card(section)
+    local text=CardLabel(card,label,132)
+    local switch=N("TextButton",{
         Text="",
         AutoButtonColor=false,
-        Size=UDim2.fromOffset(40,22),
-        Position=UDim2.new(1,-52,.5,-11),
-        BackgroundColor3=C.hover,
+        Size=UDim2.fromOffset(46,24),
+        Position=UDim2.new(1,-58,.5,-12),
+        BackgroundColor3=C.off,
         BorderSizePixel=0,
+        ZIndex=7,
         Parent=card
     })
-
-    R(sw,11)
-
+    R(switch,12)
+    local switchStroke=S(switch,C.red,1)
     local knob=N("Frame",{
-        Size=UDim2.fromOffset(16,16),
+        Size=UDim2.fromOffset(18,18),
         Position=UDim2.fromOffset(3,3),
         BackgroundColor3=C.gray,
         BorderSizePixel=0,
-        Parent=sw
+        ZIndex=8,
+        Parent=switch
     })
-
-    R(knob,8)
-
-    local obj={
-        Key=nil,
-        State=false,
-        Default=default,
-        Label=label
-    }
-
-    local info=TweenInfo.new(UI.reduceMotion and 0 or .18,Enum.EasingStyle.Quad)
-
-    function obj.Set(v,silent)
-        obj.State=v and true or false
-
-        TweenService:Create(sw,info,{
-            BackgroundColor3=obj.State and C.green or C.hover
-        }):Play()
-
-        TweenService:Create(knob,info,{
-            Position=obj.State
-                and UDim2.fromOffset(21,3)
-                or UDim2.fromOffset(3,3),
-            BackgroundColor3=obj.State and C.white or C.gray
-        }):Play()
-
-        if not silent and onChange then
-            SafeCallback(label,onChange,obj.State)
-        end
-    end
-
-    function obj.Trigger()
-        obj.Set(not obj.State)
-    end
-
-    AttachKey(card,obj,-130)
-
-    sw.Activated:Connect(obj.Trigger)
-
-    obj.Set(default,not default)
-
-    table.insert(Toggles,obj)
-
-    return obj
-end
-
-local function MakeButton(parent,order,label,onClick)
-    local card=Card(parent,order)
-
-    T(
-        card,
-        label,
-        UDim2.new(1,-190,1,0),
-        UDim2.fromOffset(14,0),
-        11,
-        C.white,
-        Enum.Font.GothamBold
-    )
-
-    local run=B(
-        card,
-        "EJECUTAR",
-        UDim2.fromOffset(76,24),
-        UDim2.new(1,-88,.5,-12)
-    )
-
-    run.BackgroundColor3=C.hover
-    run.TextColor3=C.green
-    run.TextSize=10
-
-    local obj={
-        Key=nil,
-        State=false
-    }
-
-    function obj.Trigger()
-        SafeCallback(label,onClick)
-    end
-
-    AttachKey(card,obj,-166)
-
-    run.Activated:Connect(obj.Trigger)
-
-    table.insert(Toggles,obj)
-
-    return obj
-end
-
-local function MakeSlider(parent,order,label,min,max,default,decimals,suffix,onChange)
-    local card=Card(parent,order)
-
-    T(
-        card,
-        label,
-        UDim2.new(1,-110,0,18),
-        UDim2.fromOffset(14,6),
-        11,
-        C.white,
-        Enum.Font.GothamBold
-    )
-
-    local valueLabel=T(
-        card,
-        "",
-        UDim2.fromOffset(90,18),
-        UDim2.new(1,-104,0,6),
-        10,
-        C.blue,
-        Enum.Font.GothamBold
-    )
-
-    valueLabel.TextXAlignment=Enum.TextXAlignment.Right
-
-    local track=N("Frame",{
-        Size=UDim2.new(1,-28,0,6),
-        Position=UDim2.fromOffset(14,36),
-        BackgroundColor3=C.hover,
-        BorderSizePixel=0,
-        Parent=card
-    })
-
-    R(track,3)
-
-    local fill=N("Frame",{
-        Size=UDim2.fromScale(0,1),
-        BackgroundColor3=C.blue,
-        BorderSizePixel=0,
-        Parent=track
-    })
-
-    R(fill,3)
-
-    local knob=N("Frame",{
-        Size=UDim2.fromOffset(14,14),
-        AnchorPoint=Vector2.new(.5,.5),
-        Position=UDim2.fromScale(0,.5),
-        BackgroundColor3=C.white,
-        BorderSizePixel=0,
-        Parent=track
-    })
-
-    R(knob,7)
-
+    R(knob,9)
     local hit=N("TextButton",{
         Text="",
         AutoButtonColor=false,
         BackgroundTransparency=1,
-        Size=UDim2.new(1,-28,0,24),
-        Position=UDim2.fromOffset(14,27),
+        Size=UDim2.new(1,-140,1,0),
+        ZIndex=6,
         Parent=card
     })
-
-    local obj={
-        Value=default,
-        Default=default,
-        Label=label
-    }
-
-    local fmt="%."..decimals.."f"
-
-    local function render()
-        local rel=(obj.Value-min)/(max-min)
-
-        fill.Size=UDim2.fromScale(rel,1)
-        knob.Position=UDim2.fromScale(rel,.5)
-        valueLabel.Text=string.format(fmt,obj.Value)..(suffix or "")
-    end
-
-    function obj.Set(v,silent)
-        local m=10^decimals
-
-        v=math.clamp(math.floor(v*m+.5)/m,min,max)
-
-        obj.Value=v
-        render()
-
-        if not silent and onChange then
-            SafeCallback(label,onChange,v)
-        end
-    end
-
-    local dragging=false
-
-    local function fromX(x)
-        local rel=math.clamp(
-            (x-track.AbsolutePosition.X)/track.AbsoluteSize.X,
-            0,
-            1
-        )
-
-        obj.Set(min+(max-min)*rel)
-    end
-
-    hit.InputBegan:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseButton1
-            or input.UserInputType==Enum.UserInputType.Touch then
-
-            dragging=true
-            fromX(input.Position.X)
-        end
-    end)
-
-    Track(UIS.InputChanged:Connect(function(input)
-        if dragging
-            and (
-                input.UserInputType==Enum.UserInputType.MouseMovement
-                or input.UserInputType==Enum.UserInputType.Touch
-            ) then
-
-            fromX(input.Position.X)
-        end
-    end))
-
-    Track(UIS.InputEnded:Connect(function(input)
-        if input.UserInputType==Enum.UserInputType.MouseButton1
-            or input.UserInputType==Enum.UserInputType.Touch then
-
-            dragging=false
-        end
-    end))
-
-    obj.Set(default,true)
-    table.insert(UI.sliders,obj)
-
-    return obj
-end
-
-local function MakeSelector(parent,order,label,options,default,onChange)
-    local card=Card(parent,order)
-
-    T(
-        card,
-        label,
-        UDim2.new(1,-160,1,0),
-        UDim2.fromOffset(14,0),
-        11,
-        C.white,
-        Enum.Font.GothamBold
-    )
-
-    local btn=B(
-        card,
-        "",
-        UDim2.fromOffset(134,28),
-        UDim2.new(1,-148,.5,-14)
-    )
-
-    btn.BackgroundColor3=C.hover
-    btn.TextColor3=C.red
-    btn.TextSize=10
-
-    local idx=default
-    local obj={Index=default,Default=default,Label=label}
-
-    local function render()
-        obj.Index=idx
-        btn.Text=options[idx][1]
-    end
-
+    local obj={kind="toggle",id=label,Label=label,Default=default and true or false,State=false,Key=nil}
     function obj.Set(value,silent)
-        idx=math.clamp(value,1,#options)
-        render()
+        obj.State=value and true or false
+        Tween(switch,.16,{BackgroundColor3=obj.State and C.red or C.off})
+        Tween(knob,.16,{
+            Position=obj.State and UDim2.fromOffset(25,3) or UDim2.fromOffset(3,3),
+            BackgroundColor3=obj.State and C.white or C.gray
+        })
+        text.TextColor3=obj.State and C.white or C.gray
+        switchStroke.Color=obj.State and C.gold or C.red
         if not silent then
-            SafeCallback(label,onChange,options[idx][2])
+            SafeCall(label,onChange,obj.State)
+            Notify(label,obj.State and "ACTIVADO" or "DESACTIVADO",obj.State and C.red or C.dim)
         end
     end
-
-    btn.Activated:Connect(function()
-        obj.Set(idx%#options+1)
-    end)
-
-    obj.Set(default,true)
-    table.insert(UI.selectors,obj)
-    return obj
-end
-
-UI.MakeKeybind=function(parent,order,label,default,onTrigger)
-    local card=Card(parent,order)
-    T(card,label,UDim2.new(1,-120,1,0),UDim2.fromOffset(14,0),11,C.white,Enum.Font.GothamBold)
-    local keyBtn=B(card,"[NONE]",UDim2.fromOffset(88,26),UDim2.new(1,-102,.5,-13))
-    keyBtn.BackgroundColor3=C.hover
-    keyBtn.TextColor3=C.red
-    keyBtn.TextSize=10
-    local obj={Key=default,Default=default,Label=label}
-    function obj.SetKey(key)
-        obj.Key=key
-        UI.menuKey=key
-        keyBtn.Text=key and ("["..key.Name:upper().."]") or "[NONE]"
-        keyBtn.TextColor3=key and C.red or C.gray
+    function obj.Get()
+        return obj.State
     end
     function obj.Trigger()
-        SafeCallback(label,onTrigger,obj.Key)
+        obj.Set(not obj.State)
     end
-    keyBtn.Activated:Connect(function()
-        if listening==obj then
-            listening=nil
-            obj.SetKey(obj.Key)
-        else
-            if listening then
-                listening.SetKey(listening.Key)
-            end
-            listening=obj
-            keyBtn.Text="[...]"
-            keyBtn.TextColor3=C.gold
-        end
+    AttachKey(card,obj,-132)
+    Track(switch.Activated:Connect(obj.Trigger))
+    Track(hit.Activated:Connect(obj.Trigger))
+    table.insert(STATE.layoutHooks,function()
+        obj.KeyButton.Visible=not STATE.mobile
+        local right=STATE.mobile and 70 or 132
+        text.Size=UDim2.new(1,-(14+right),1,-6)
+        hit.Size=UDim2.new(1,-right,1,0)
     end)
-    obj.SetKey(default)
-    table.insert(Toggles,obj)
+    obj.Set(obj.Default,true)
+    return Register(obj)
+end
+
+local function MakeButton(section,label,actionText,onClick)
+    local card=Card(section)
+    local text=CardLabel(card,label,176)
+    local run=B(card,actionText or "EJECUTAR",UDim2.fromOffset(92,28),UDim2.new(1,-104,.5,-14))
+    run.BackgroundColor3=C.redDeep
+    run.TextColor3=C.white
+    run.TextSize=10
+    run.ZIndex=7
+    S(run,C.red,1)
+    local obj={kind="button",id=label,Label=label,Key=nil}
+    function obj.Trigger()
+        Tween(run,.08,{BackgroundColor3=C.red})
+        task.delay(.12,function()
+            if run.Parent then
+                Tween(run,.15,{BackgroundColor3=C.redDeep})
+            end
+        end)
+        SafeCall(label,onClick)
+    end
+    AttachKey(card,obj,-176)
+    Track(run.Activated:Connect(obj.Trigger))
+    table.insert(STATE.layoutHooks,function()
+        obj.KeyButton.Visible=not STATE.mobile
+        local right=STATE.mobile and 112 or 176
+        text.Size=UDim2.new(1,-(14+right),1,-6)
+    end)
     return obj
 end
 
+local function MakeSlider(section,label,min,max,default,decimals,suffix,onChange)
+    local card=Card(section)
+    local text=T(card,label,UDim2.new(1,-110,0,18),UDim2.fromOffset(14,6),11,C.white,Enum.Font.GothamBold)
+    text.ZIndex=6
+    local valueLabel=T(card,"",UDim2.fromOffset(86,18),UDim2.new(1,-100,0,6),11,C.redSoft,Enum.Font.GothamBlack)
+    valueLabel.TextXAlignment=Enum.TextXAlignment.Right
+    valueLabel.ZIndex=6
+    local track=N("Frame",{
+        Size=UDim2.new(1,-28,0,6),
+        Position=UDim2.new(0,14,1,-16),
+        BackgroundColor3=C.off,
+        BorderSizePixel=0,
+        ZIndex=6,
+        Parent=card
+    })
+    R(track,3)
+    local fill=N("Frame",{
+        Size=UDim2.fromScale(0,1),
+        BackgroundColor3=C.red,
+        BorderSizePixel=0,
+        ZIndex=7,
+        Parent=track
+    })
+    R(fill,3)
+    G(fill,C.redSoft,C.red,0)
+    local knob=N("Frame",{
+        Size=UDim2.fromOffset(16,16),
+        AnchorPoint=Vector2.new(.5,.5),
+        Position=UDim2.fromScale(0,.5),
+        BackgroundColor3=C.white,
+        BorderSizePixel=0,
+        ZIndex=8,
+        Parent=track
+    })
+    R(knob,8)
+    S(knob,C.red,1.5,false)
+    local hit=N("TextButton",{
+        Text="",
+        AutoButtonColor=false,
+        BackgroundTransparency=1,
+        Size=UDim2.new(1,-12,0,30),
+        Position=UDim2.new(0,6,1,-30),
+        ZIndex=9,
+        Parent=card
+    })
+    local obj={kind="slider",id=label,Label=label,Default=default,Value=default}
+    local format="%."..tostring(decimals or 0).."f"
+    local function render()
+        local rel=(obj.Value-min)/math.max(max-min,1e-6)
+        fill.Size=UDim2.fromScale(rel,1)
+        knob.Position=UDim2.fromScale(rel,.5)
+        valueLabel.Text=string.format(format,obj.Value)..(suffix or "")
+    end
+    function obj.Set(value,silent)
+        local factor=10^(decimals or 0)
+        value=tonumber(value) or obj.Default
+        value=math.clamp(math.floor(value*factor+.5)/factor,min,max)
+        local changed=value~=obj.Value
+        obj.Value=value
+        render()
+        if not silent and (changed or silent==false) then
+            SafeCall(label,onChange,value)
+        end
+    end
+    function obj.Get()
+        return obj.Value
+    end
+    local dragging=false
+    local dragInput=nil
+    local function fromX(x)
+        local width=track.AbsoluteSize.X
+        if width<=0 then
+            return
+        end
+        local rel=math.clamp((x-track.AbsolutePosition.X)/width,0,1)
+        obj.Set(min+(max-min)*rel)
+    end
+    Track(hit.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true
+            dragInput=input
+            section.content.scroll.ScrollingEnabled=false
+            fromX(input.Position.X)
+        end
+    end))
+    Track(UIS.InputChanged:Connect(function(input)
+        if not dragging then
+            return
+        end
+        if input.UserInputType==Enum.UserInputType.MouseMovement or (input.UserInputType==Enum.UserInputType.Touch and (dragInput==nil or input==dragInput or dragInput.UserInputType~=Enum.UserInputType.Touch)) then
+            fromX(input.Position.X)
+        end
+    end))
+    Track(UIS.InputEnded:Connect(function(input)
+        if dragging and (input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch) then
+            dragging=false
+            dragInput=nil
+            section.content.scroll.ScrollingEnabled=true
+        end
+    end))
+    obj.Value=math.clamp(default,min,max)
+    render()
+    return Register(obj)
+end
+
+local function MakeSelector(section,label,options,defaultValue,onChange)
+    local card=Card(section)
+    local text=CardLabel(card,label,186)
+    local left=B(card,"<",UDim2.fromOffset(28,28),UDim2.new(1,-182,.5,-14))
+    local value=B(card,"",UDim2.fromOffset(112,28),UDim2.new(1,-150,.5,-14))
+    local right=B(card,">",UDim2.fromOffset(28,28),UDim2.new(1,-36,.5,-14))
+    for _,button in ipairs({left,value,right}) do
+        button.BackgroundColor3=C.off
+        button.TextColor3=C.redSoft
+        button.TextSize=10
+        button.ZIndex=7
+        S(button,C.red,1)
+    end
+    value.TextColor3=C.white
+    local defaultIndex=1
+    for i,option in ipairs(options) do
+        if option[2]==defaultValue then
+            defaultIndex=i
+        end
+    end
+    local obj={kind="selector",id=label,Label=label,Default=defaultIndex,Index=defaultIndex}
+    local function render()
+        value.Text=options[obj.Index][1]
+    end
+    function obj.Set(index,silent)
+        index=tonumber(index) or obj.Default
+        index=((math.floor(index)-1)%#options)+1
+        obj.Index=index
+        render()
+        if not silent then
+            SafeCall(label,onChange,options[index][2])
+            Notify(label,options[index][1],C.red)
+        end
+    end
+    function obj.Get()
+        return obj.Index
+    end
+    function obj.Value()
+        return options[obj.Index][2]
+    end
+    Track(left.Activated:Connect(function()
+        obj.Set(obj.Index-1)
+    end))
+    Track(right.Activated:Connect(function()
+        obj.Set(obj.Index+1)
+    end))
+    Track(value.Activated:Connect(function()
+        obj.Set(obj.Index+1)
+    end))
+    table.insert(STATE.layoutHooks,function()
+        local compact=LAYOUT.cellWidth<330
+        local valueWidth=compact and 92 or 112
+        value.Size=UDim2.fromOffset(valueWidth,28)
+        right.Position=UDim2.new(1,-36,.5,-14)
+        value.Position=UDim2.new(1,-(36+4+valueWidth),.5,-14)
+        left.Position=UDim2.new(1,-(36+4+valueWidth+4+28),.5,-14)
+        text.Size=UDim2.new(1,-(14+36+4+valueWidth+4+28+8),1,-6)
+    end)
+    render()
+    return Register(obj)
+end
+
+local function MakeKeybind(section,label,default,onSet)
+    local card=Card(section)
+    CardLabel(card,label,120)
+    local keyButton=B(card,"",UDim2.fromOffset(104,28),UDim2.new(1,-116,.5,-14))
+    keyButton.BackgroundColor3=C.off
+    keyButton.TextColor3=C.redSoft
+    keyButton.TextSize=10
+    keyButton.ZIndex=7
+    S(keyButton,C.red,1)
+    local obj={kind="keybind",id=label,Label=label,Default=default,Key=default,IsMenuKey=true}
+    function obj.SetKey(key)
+        obj.Key=key
+        keyButton.Text="["..KeyName(key).."]"
+        keyButton.TextColor3=key and C.redSoft or C.dim
+        SafeCall(label,onSet,key)
+    end
+    function obj.Set(key)
+        if typeof(key)=="EnumItem" then
+            obj.SetKey(key)
+        elseif type(key)=="string" and Enum.KeyCode[key] then
+            obj.SetKey(Enum.KeyCode[key])
+        else
+            obj.SetKey(obj.Default)
+        end
+    end
+    function obj.Get()
+        return obj.Key and obj.Key.Name or nil
+    end
+    Track(keyButton.Activated:Connect(function()
+        if STATE.listening==obj then
+            STATE.listening=nil
+            obj.SetKey(obj.Key)
+            return
+        end
+        if STATE.listening and STATE.listening.SetKey then
+            STATE.listening.SetKey(STATE.listening.Key)
+        end
+        STATE.listening=obj
+        keyButton.Text="[PULSA TECLA]"
+        keyButton.TextColor3=C.gold
+    end))
+    keyButton.Text="["..KeyName(default).."]"
+    return Register(obj)
+end
+
+C.blue=C.redSoft
+C.hover=C.hover or C.cardHi
+
+local PeoplePage=Pages.PEOPLE
+
+local List=N("ScrollingFrame",{
+    Name="PlayerList",
+    Size=UDim2.new(0,200,1,-64),
+    Position=UDim2.fromOffset(12,54),
+    BackgroundColor3=C.black,
+    BackgroundTransparency=.45,
+    BorderSizePixel=0,
+    ScrollBarThickness=4,
+    ScrollBarImageColor3=C.red,
+    CanvasSize=UDim2.new(),
+    ZIndex=4,
+    Parent=PeoplePage
+})
+R(List,12)
+S(List,C.red,1)
+N("UIPadding",{
+    PaddingTop=UDim.new(0,6),
+    PaddingBottom=UDim.new(0,6),
+    PaddingLeft=UDim.new(0,2),
+    PaddingRight=UDim.new(0,6),
+    Parent=List
+})
+local LL=N("UIListLayout",{
+    Padding=UDim.new(0,6),
+    SortOrder=Enum.SortOrder.LayoutOrder,
+    Parent=List
+})
+Track(LL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    List.CanvasSize=UDim2.fromOffset(0,LL.AbsoluteContentSize.Y/math.max(MainScale.Scale,.01)+16)
+end))
+
+local Info=N("Frame",{
+    Name="Profile",
+    Size=UDim2.new(1,-236,1,-64),
+    Position=UDim2.fromOffset(222,54),
+    BackgroundColor3=C.black,
+    BackgroundTransparency=.45,
+    BorderSizePixel=0,
+    ZIndex=4,
+    Parent=PeoplePage
+})
+R(Info,12)
+S(Info,C.red,1)
+
+local View=N("ViewportFrame",{
+    Size=UDim2.fromOffset(240,240),
+    Position=UDim2.fromOffset(12,12),
+    BackgroundColor3=C.black,
+    Ambient=Color3.fromRGB(200,190,195),
+    LightColor=C.white,
+    LightDirection=Vector3.new(-1,-1,-1),
+    ZIndex=5,
+    Parent=Info
+})
+R(View,12)
+S(View,C.red,1)
+
+local Camera=N("Camera",{Parent=View})
+View.CurrentCamera=Camera
+
+local Name=T(Info,"Selecciona un jugador",UDim2.new(1,-280,0,26),UDim2.fromOffset(268,14),18,C.white,Enum.Font.GothamBlack)
+Name.ZIndex=5
+local User=T(Info,"@-",UDim2.new(1,-280,0,18),UDim2.fromOffset(268,42),11,C.redSoft,Enum.Font.GothamBold)
+User.ZIndex=5
+local State=T(Info,"estado: --",UDim2.new(1,-280,0,18),UDim2.fromOffset(268,62),11,C.gray,Enum.Font.GothamMedium)
+State.ZIndex=5
+
+local DetailList=N("ScrollingFrame",{
+    Size=UDim2.new(1,-280,1,-100),
+    Position=UDim2.fromOffset(268,88),
+    BackgroundTransparency=1,
+    BorderSizePixel=0,
+    ScrollBarThickness=4,
+    ScrollBarImageColor3=C.red,
+    CanvasSize=UDim2.new(),
+    ZIndex=5,
+    Parent=Info
+})
+local DL=N("UIListLayout",{
+    Padding=UDim.new(0,6),
+    SortOrder=Enum.SortOrder.LayoutOrder,
+    Parent=DetailList
+})
+Track(DL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    DetailList.CanvasSize=UDim2.fromOffset(0,DL.AbsoluteContentSize.Y/math.max(MainScale.Scale,.01)+10)
+end))
+
+table.insert(STATE.layoutHooks,function()
+    local pageWidth=LAYOUT.width-24
+    local pageHeight=LAYOUT.height-(LAYOUT.header+32)
+    local compact=STATE.mobile and LAYOUT.height<330
+    local top=STATE.mobile and (compact and 34 or 48) or 54
+    local listWidth=pageWidth<520 and 112 or (STATE.mobile and 160 or 200)
+    List.Position=UDim2.fromOffset(10,top)
+    List.Size=UDim2.new(0,listWidth,1,-(top+10))
+    Info.Position=UDim2.fromOffset(listWidth+18,top)
+    Info.Size=UDim2.new(1,-(listWidth+28),1,-(top+10))
+    local infoWidth=pageWidth-(listWidth+28)
+    local infoHeight=pageHeight-(top+10)
+    local view=math.floor(math.clamp(math.min(infoHeight-24,infoWidth*.45,250),70,250))
+    local sideWidth=infoWidth-view-36
+    if sideWidth>=150 then
+        View.Size=UDim2.fromOffset(view,view)
+        View.Position=UDim2.fromOffset(12,12)
+        Name.Position=UDim2.fromOffset(view+24,12)
+        Name.Size=UDim2.new(1,-(view+36),0,24)
+        User.Position=UDim2.fromOffset(view+24,38)
+        User.Size=UDim2.new(1,-(view+36),0,18)
+        State.Position=UDim2.fromOffset(view+24,56)
+        State.Size=UDim2.new(1,-(view+36),0,18)
+        DetailList.Position=UDim2.fromOffset(view+24,80)
+        DetailList.Size=UDim2.new(1,-(view+36),1,-92)
+    else
+        view=math.floor(math.clamp(math.min(infoWidth-24,infoHeight*.42),70,180))
+        View.Size=UDim2.fromOffset(view,view)
+        View.Position=UDim2.new(.5,-view/2,0,10)
+        Name.Position=UDim2.fromOffset(10,view+14)
+        Name.Size=UDim2.new(1,-20,0,20)
+        User.Position=UDim2.fromOffset(10,view+34)
+        User.Size=UDim2.new(1,-20,0,16)
+        State.Position=UDim2.fromOffset(10,view+50)
+        State.Size=UDim2.new(1,-20,0,16)
+        DetailList.Position=UDim2.fromOffset(10,view+70)
+        DetailList.Size=UDim2.new(1,-20,1,-(view+78))
+    end
+    Name.TextSize=STATE.mobile and 15 or 18
+end)
 local function Clear(parent)
     for _,child in ipairs(parent:GetChildren()) do
         if not child:IsA("UIListLayout") then
@@ -1414,2103 +1655,6 @@ local function Clothes(player)
     return #clothes>0 and table.concat(clothes," • ")
         or "ropa predeterminada"
 end
-
-local function TargetModels()
-    local output = {}
-    local alreadyAdded = {}
-
-    local function AddModel(model)
-        if model
-            and model:IsA("Model")
-            and not alreadyAdded[model] then
-
-            alreadyAdded[model] = true
-            table.insert(output, model)
-        end
-    end
-
-    local folder = workspace:FindFirstChild("Targets")
-
-    if folder then
-        for _, model in ipairs(folder:GetChildren()) do
-            AddModel(model)
-        end
-    end
-
-    for _, model in ipairs(
-        CollectionService:GetTagged("Target")
-    ) do
-        AddModel(model)
-    end
-
-    return output
-end
-
-UI.IsFriendly=function(model)
-    if not UI.espExcludeFriendly then
-        return false
-    end
-    local player=Players:GetPlayerFromCharacter(model)
-    if player and LP.Team and player.Team==LP.Team then
-        return true
-    end
-    local ok,team=pcall(function() return model:GetAttribute("Team") end)
-    return ok and team~=nil and LP.Team~=nil and tostring(team)==LP.Team.Name
-end
-
-local full=false
-local noFog=false
-local noShadows=false
-local hourOn=false
-local hourVal=14
-local lightActive=false
-
-local function ApplyLighting()
-    local active=full or noFog or noShadows or hourOn
-
-    if not active and not lightActive then
-        return
-    end
-
-    lightActive=active
-
-    Lighting.Brightness=full and 3 or origLight.Brightness
-
-    Lighting.FogEnd=(full or noFog)
-        and 100000
-        or origLight.FogEnd
-
-    if noShadows then
-        Lighting.GlobalShadows=false
-    else
-        Lighting.GlobalShadows=origLight.GlobalShadows
-    end
-
-    if hourOn then
-        Lighting.ClockTime=hourVal
-    elseif full then
-        Lighting.ClockTime=14
-    else
-        Lighting.ClockTime=origLight.ClockTime
-    end
-end
-
-
-local xrayOn=false
-local hlOn=false
-local xrayFill=.55
-local xrayStore={}
-local hlStore={}
-
-local function SyncHighlights(store,enabled,fill,fillColor,outlineColor)
-    local want={}
-
-    if enabled then
-        for _,model in ipairs(TargetModels()) do
-            want[model]=true
-        end
-    end
-
-    for model,h in pairs(store) do
-        if not want[model] or not h.Parent then
-            h:Destroy()
-            store[model]=nil
-        end
-    end
-
-    for model in pairs(want) do
-        if not store[model] then
-            store[model]=N("Highlight",{
-                Adornee=model,
-                FillColor=fillColor,
-                OutlineColor=outlineColor,
-                FillTransparency=fill,
-                DepthMode=Enum.HighlightDepthMode.AlwaysOnTop,
-                Parent=model
-            })
-        end
-    end
-
-    for _,h in pairs(store) do
-        h.FillTransparency=fill
-    end
-end
-
-local function SyncHL()
-    SyncHighlights(xrayStore,xrayOn,xrayFill,C.blue,C.white)
-    SyncHighlights(hlStore,hlOn and not xrayOn,1,C.green,C.green)
-end
-
-task.spawn(function()
-    while Gui.Parent do
-        SyncHL()
-        ApplyLighting()
-        task.wait(.5)
-    end
-end)
-
-
-local espCfg={
-    boxes=false,
-    names=false,
-    dist=false,
-    health=false,
-    tracers=false,
-    hpColor=true,
-    range=500
-}
-
-local espEntries={}
-
-local function NewEntry()
-    local e={}
-
-    e.box=N("Frame",{
-        BackgroundTransparency=1,
-        BorderSizePixel=0,
-        Visible=false,
-        Parent=EspLayer
-    })
-
-    e.stroke=N("UIStroke",{
-        Color=C.blue,
-        Thickness=1.5,
-        Parent=e.box
-    })
-
-    e.name=T(
-        EspLayer,
-        "",
-        UDim2.fromOffset(150,14),
-        nil,
-        11,
-        C.white,
-        Enum.Font.GothamBold
-    )
-
-    e.name.TextXAlignment=Enum.TextXAlignment.Center
-    e.name.TextStrokeTransparency=.4
-    e.name.Visible=false
-
-    e.dist=T(
-        EspLayer,
-        "",
-        UDim2.fromOffset(150,14),
-        nil,
-        10,
-        C.gray,
-        Enum.Font.GothamBold
-    )
-
-    e.dist.TextXAlignment=Enum.TextXAlignment.Center
-    e.dist.TextStrokeTransparency=.4
-    e.dist.Visible=false
-
-    e.hpBack=N("Frame",{
-        BackgroundColor3=Color3.new(0,0,0),
-        BackgroundTransparency=.4,
-        BorderSizePixel=0,
-        Visible=false,
-        Parent=EspLayer
-    })
-
-    e.hpFill=N("Frame",{
-        AnchorPoint=Vector2.new(0,1),
-        Position=UDim2.fromScale(0,1),
-        Size=UDim2.fromScale(1,1),
-        BorderSizePixel=0,
-        Parent=e.hpBack
-    })
-
-    e.tracer=N("Frame",{
-        AnchorPoint=Vector2.new(.5,.5),
-        BorderSizePixel=0,
-        Visible=false,
-        Parent=EspLayer
-    })
-
-    return e
-end
-
-local function HideEntry(e)
-    e.box.Visible=false
-    e.name.Visible=false
-    e.dist.Visible=false
-    e.hpBack.Visible=false
-    e.tracer.Visible=false
-end
-
-local function DestroyEntry(e)
-    for _,v in ipairs({e.box,e.name,e.dist,e.hpBack,e.tracer}) do
-        if v and v.Parent then
-            v:Destroy()
-        end
-    end
-end
-
-local function EspStep()
-    local now=os.clock()
-    if now-UI.originalEspLast<1/math.max(UI.espUpdateRate,1) then
-        return
-    end
-    UI.originalEspLast=now
-    local cam=workspace.CurrentCamera
-
-    local anyOn=espCfg.boxes
-        or espCfg.names
-        or espCfg.dist
-        or espCfg.health
-        or espCfg.tracers
-
-    local models={}
-
-    if anyOn and cam then
-        for _,m in ipairs(TargetModels()) do
-            models[m]=true
-        end
-    end
-
-    for m,e in pairs(espEntries) do
-        if not models[m] or not m.Parent then
-            DestroyEntry(e)
-            espEntries[m]=nil
-        end
-    end
-
-    if not anyOn or not cam then
-        return
-    end
-
-    local vp=cam.ViewportSize
-    local root=Root()
-
-    local origin=root
-        and root.Position
-        or cam.CFrame.Position
-
-    for m in pairs(models) do
-        local e=espEntries[m]
-
-        if not e then
-            e=NewEntry()
-            espEntries[m]=e
-        end
-
-        local hum=m:FindFirstChildOfClass("Humanoid")
-        local alive=not hum or hum.Health>0
-        local ok,cf,size=pcall(m.GetBoundingBox,m)
-        local shown=false
-
-        if alive and ok then
-            local d=(cf.Position-origin).Magnitude
-
-            if d<=espCfg.range then
-                local minX,minY=math.huge,math.huge
-                local maxX,maxY=-math.huge,-math.huge
-                local front=true
-
-                for ix=-1,1,2 do
-                    for iy=-1,1,2 do
-                        for iz=-1,1,2 do
-                            local w=cf:PointToWorldSpace(
-                                Vector3.new(
-                                    size.X*ix,
-                                    size.Y*iy,
-                                    size.Z*iz
-                                )/2
-                            )
-
-                            local v=cam:WorldToViewportPoint(w)
-
-                            if v.Z<=0 then
-                                front=false
-                            end
-
-                            minX=math.min(minX,v.X)
-                            minY=math.min(minY,v.Y)
-                            maxX=math.max(maxX,v.X)
-                            maxY=math.max(maxY,v.Y)
-                        end
-                    end
-                end
-
-                if front then
-                    shown=true
-
-                    local w=math.max(maxX-minX,4)
-                    local h=math.max(maxY-minY,4)
-                    local cx=minX+w/2
-
-                    local frac=hum
-                        and math.clamp(
-                            hum.Health/math.max(hum.MaxHealth,1),
-                            0,
-                            1
-                        )
-                        or 1
-
-                    local col=(espCfg.hpColor and hum)
-                        and Color3.fromHSV(frac*.33,.9,1)
-                        or C.blue
-
-                    e.box.Position=UDim2.fromOffset(minX,minY)
-                    e.box.Size=UDim2.fromOffset(w,h)
-                    e.box.Visible=espCfg.boxes
-                    e.stroke.Color=col
-
-                    e.name.Text=m.Name
-                    e.name.Position=UDim2.fromOffset(cx-75,minY-17)
-                    e.name.Visible=espCfg.names
-
-                    e.dist.Text=string.format("%d studs",d)
-                    e.dist.Position=UDim2.fromOffset(cx-75,maxY+2)
-                    e.dist.Visible=espCfg.dist
-
-                    e.hpBack.Position=UDim2.fromOffset(minX-7,minY)
-                    e.hpBack.Size=UDim2.fromOffset(3,h)
-                    e.hpFill.Size=UDim2.fromScale(1,frac)
-                    e.hpFill.BackgroundColor3=col
-                    e.hpBack.Visible=espCfg.health
-
-                    local a=Vector2.new(vp.X/2,vp.Y)
-                    local b=Vector2.new(cx,maxY)
-                    local dv=b-a
-                    local mid=(a+b)/2
-
-                    e.tracer.Size=UDim2.fromOffset(dv.Magnitude,1.5)
-                    e.tracer.Position=UDim2.fromOffset(mid.X,mid.Y)
-                    e.tracer.Rotation=math.deg(math.atan2(dv.Y,dv.X))
-                    e.tracer.BackgroundColor3=col
-                    e.tracer.Visible=espCfg.tracers
-                end
-            end
-        end
-
-        if not shown then
-            HideEntry(e)
-        end
-    end
-end
-
-
-local aimOn=false
-local showFov=true
-local showMarker=true
-local AIM_FOV=150
-local AIM_RANGE=250
-local AIM_STRENGTH=.06
-local AIM_PART="Head"
-
-local _currentTarget=nil
-local aimMarker=nil
-local markerTarget=nil
-
-local function UpdateFov()
-    FovCircle.Size=UDim2.fromOffset(AIM_FOV*2,AIM_FOV*2)
-    FovCircle.Visible=aimOn and showFov
-end
-
-local function SetMarker(part)
-    if part==markerTarget then
-        return
-    end
-
-    markerTarget=part
-
-    if aimMarker then
-        aimMarker:Destroy()
-        aimMarker=nil
-    end
-
-    if part then
-        aimMarker=N("BillboardGui",{
-            Adornee=part,
-            Size=UDim2.fromOffset(150,45),
-            AlwaysOnTop=true,
-            Parent=part
-        })
-
-        N("TextLabel",{
-            Size=UDim2.fromScale(1,1),
-            BackgroundTransparency=1,
-            Text="AIM",
-            TextColor3=C.white,
-            TextStrokeTransparency=.2,
-            Font=Enum.Font.GothamBold,
-            TextSize=14,
-            Parent=aimMarker
-        })
-    end
-end
-
-local function GetTarget()
-    local character=LP.Character
-    local root=Root()
-    local cam=workspace.CurrentCamera
-
-    if not root or not cam then
-        return nil
-    end
-
-    local center=cam.ViewportSize/2
-    local nearest,nearestPos=nil,nil
-    local best=AIM_FOV
-
-    for _,model in ipairs(TargetModels()) do
-        if model~=character then
-            local hum=model:FindFirstChildOfClass("Humanoid")
-            local head=model:FindFirstChild("Head")
-
-            local torso=model:FindFirstChild("UpperTorso")
-                or model:FindFirstChild("Torso")
-                or model:FindFirstChild("HumanoidRootPart")
-                or model.PrimaryPart
-
-            local part
-
-            if AIM_PART=="Chest" then
-                part=torso or head
-            else
-                part=head or torso
-            end
-
-            if part and (not hum or hum.Health>0) then
-                local pos=part.Position
-
-                if AIM_PART=="Neck" and part==head then
-                    pos=pos-Vector3.new(0,head.Size.Y*.5,0)
-                end
-
-                if (pos-root.Position).Magnitude<=AIM_RANGE then
-                    local v,onScreen=cam:WorldToViewportPoint(pos)
-
-                    if onScreen then
-                        local d=(Vector2.new(v.X,v.Y)-center).Magnitude
-
-                        if d<=best then
-                            best=d
-                            nearest=part
-                            nearestPos=pos
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    return nearest,nearestPos
-end
-
-
-local speedOn=false
-local speedVal=32
-local origSpeed=nil
-
-local jumpOn=false
-local jumpVal=100
-local origJump=nil
-local origUseJP=nil
-
-local flyOn=false
-local flySpeed=60
-local flyActive=false
-
-local noclipOn=false
-local ncStore={}
-
-local infJump=false
-local gravityOn=false
-local gravityVal=100
-local camFovOn=false
-local camFovVal=90
-local camFovActive=false
-local zoomOn=false
-local spinOn=false
-local spinSpeed=360
-local antiAfk=false
-local clickTp=false
-
-local function ApplySpeed()
-    local hum=Hum()
-
-    if not hum then
-        return
-    end
-
-    if speedOn then
-        if not origSpeed then
-            origSpeed=hum.WalkSpeed
-        end
-
-        if hum.WalkSpeed~=speedVal then
-            hum.WalkSpeed=speedVal
-        end
-    elseif origSpeed then
-        hum.WalkSpeed=origSpeed
-        origSpeed=nil
-    end
-end
-
-local function ApplyJump()
-    local hum=Hum()
-
-    if not hum then
-        return
-    end
-
-    if jumpOn then
-        if not origJump then
-            origJump=hum.JumpPower
-            origUseJP=hum.UseJumpPower
-        end
-
-        hum.UseJumpPower=true
-        hum.JumpPower=jumpVal
-    elseif origJump then
-        hum.UseJumpPower=origUseJP
-        hum.JumpPower=origJump
-        origJump=nil
-    end
-end
-
-local function ApplyGravity()
-    workspace.Gravity=gravityOn and gravityVal or origGravity
-end
-
-local function ApplyZoom()
-    LP.CameraMaxZoomDistance=zoomOn and 1000 or origZoom
-end
-
-local function DoFly()
-    local root=Root()
-    local hum=Hum()
-    local camera=workspace.CurrentCamera
-
-    if flyOn and root and hum and camera then
-        flyActive=true
-        hum.PlatformStand=true
-
-        local cf=camera.CFrame
-        local dir=Vector3.zero
-
-        if UIS:IsKeyDown(Enum.KeyCode.W) then
-            dir=dir+cf.LookVector
-        end
-
-        if UIS:IsKeyDown(Enum.KeyCode.S) then
-            dir=dir-cf.LookVector
-        end
-
-        if UIS:IsKeyDown(Enum.KeyCode.D) then
-            dir=dir+cf.RightVector
-        end
-
-        if UIS:IsKeyDown(Enum.KeyCode.A) then
-            dir=dir-cf.RightVector
-        end
-
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then
-            dir=dir+Vector3.yAxis
-        end
-
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
-            dir=dir-Vector3.yAxis
-        end
-
-        if dir.Magnitude>0 then
-            dir=dir.Unit
-        end
-
-        root.AssemblyLinearVelocity=dir*flySpeed
-
-        local look=Vector3.new(cf.LookVector.X,0,cf.LookVector.Z)
-
-        if look.Magnitude>0 then
-            root.CFrame=CFrame.lookAt(
-                root.Position,
-                root.Position+look
-            )
-        end
-    elseif flyActive then
-        flyActive=false
-
-        if hum then
-            hum.PlatformStand=false
-        end
-
-        if root then
-            root.AssemblyLinearVelocity=Vector3.zero
-        end
-    end
-end
-
-local function TpTarget()
-    local root=Root()
-
-    if not root then
-        return
-    end
-
-    local best=nil
-    local bd=math.huge
-
-    for _,m in ipairs(TargetModels()) do
-        local p=m:FindFirstChild("HumanoidRootPart")
-            or m.PrimaryPart
-            or m:FindFirstChildWhichIsA("BasePart")
-
-        if p then
-            local d=(p.Position-root.Position).Magnitude
-
-            if d<bd then
-                bd=d
-                best=p
-            end
-        end
-    end
-
-    if best then
-        root.CFrame=CFrame.new(
-            best.Position+Vector3.new(0,3,6)
-        )
-    end
-end
-
-local function ResetChar()
-    local hum=Hum()
-
-    if hum then
-        hum.Health=0
-    end
-end
-
-Track(RunService.Stepped:Connect(function()
-    local ch=LP.Character
-
-    if noclipOn and ch then
-        for _,d in ipairs(ch:GetDescendants()) do
-            if d:IsA("BasePart") and d.CanCollide then
-                ncStore[d]=true
-                d.CanCollide=false
-            end
-        end
-    elseif next(ncStore) then
-        for part in pairs(ncStore) do
-            if part.Parent then
-                part.CanCollide=true
-            end
-        end
-
-        table.clear(ncStore)
-    end
-end))
-
-Track(UIS.JumpRequest:Connect(function()
-    if infJump then
-        local hum=Hum()
-
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
-end))
-
-Track(LP.Idled:Connect(function()
-    if antiAfk and VirtualUser then
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end)
-    end
-end))
-
-local menuOpen=false
-local menuBusy=false
-local menuTweenInfo=TweenInfo.new(.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out)
-
-local function SetMenuOpen(open)
-    if menuBusy or not Gui.Parent then
-        return
-    end
-
-    menuBusy=true
-    menuOpen=open and true or false
-
-    if menuOpen then
-        Launcher.Visible=false
-        Main.Visible=true
-        Main.Position=UDim2.fromScale(.5,.56)
-        local tween=TweenService:Create(Main,menuTweenInfo,{
-            Position=UDim2.fromScale(.5,.5)
-        })
-        tween.Completed:Connect(function()
-            menuBusy=false
-        end)
-        tween:Play()
-    else
-        local tween=TweenService:Create(Main,menuTweenInfo,{
-            Position=UDim2.fromScale(.5,.56)
-        })
-        tween.Completed:Connect(function()
-            if Gui.Parent and not menuOpen then
-                Main.Visible=false
-                Launcher.Visible=true
-            end
-            menuBusy=false
-        end)
-        tween:Play()
-    end
-end
-
-Launcher.Activated:Connect(function()
-    SetMenuOpen(not menuOpen)
-end)
-
-LauncherAction.Activated:Connect(function()
-    SetMenuOpen(true)
-end)
-
-UI.ApplyLauncherMode=function(compact)
-    UI.compactLauncher=compact and true or false
-    if UI.compactLauncher then
-        Launcher.Size=UDim2.fromOffset(56,56)
-        Launcher.Position=UDim2.new(1,-76,1,-82)
-        LauncherTitle.Text="S"
-        LauncherTitle.Size=UDim2.fromScale(1,1)
-        LauncherTitle.Position=UDim2.new()
-        LauncherTitle.TextXAlignment=Enum.TextXAlignment.Center
-        LauncherTitle.TextYAlignment=Enum.TextYAlignment.Center
-        LauncherSub.Visible=false
-        LauncherAction.Visible=false
-        LauncherAccent.Position=UDim2.fromOffset(8,8)
-        LauncherAccent.Size=UDim2.fromOffset(4,40)
-    else
-        Launcher.Size=UDim2.fromOffset(184,50)
-        Launcher.Position=UDim2.new(1,-204,1,-74)
-        LauncherTitle.Text="STIRLAX MODZ"
-        LauncherTitle.Size=UDim2.new(1,-68,0,20)
-        LauncherTitle.Position=UDim2.fromOffset(24,7)
-        LauncherTitle.TextXAlignment=Enum.TextXAlignment.Left
-        LauncherTitle.TextYAlignment=Enum.TextYAlignment.Center
-        LauncherSub.Visible=true
-        LauncherAction.Visible=true
-        LauncherAccent.Position=UDim2.fromOffset(10,10)
-        LauncherAccent.Size=UDim2.fromOffset(4,30)
-    end
-end
-
-UI.ApplyMenuLock=function(lock)
-    UI.lockMenu=lock and true or false
-    Main.Draggable=not UI.lockMenu
-    Launcher.Draggable=not UI.lockMenu
-end
-
-Track(UIS.InputBegan:Connect(function(input,gp)
-    if gp or not clickTp then
-        return
-    end
-
-    if input.UserInputType==Enum.UserInputType.MouseButton1
-        and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-
-        local root=Root()
-        local mouse=LP:GetMouse()
-
-        if root and mouse.Hit then
-            root.CFrame=CFrame.new(
-                mouse.Hit.Position+Vector3.new(0,3,0)
-            )
-        end
-    end
-end))
-
-pcall(function()
-    RunService:UnbindFromRenderStep("09Step")
-    RunService:UnbindFromRenderStep("09EspStep")
-end)
-
-pcall(function()
-    RunService:BindToRenderStep(
-        "09Step",
-        Enum.RenderPriority.Camera.Value+1,
-        function(dt)
-            local ok,err=pcall(function()
-                local cam=workspace.CurrentCamera
-                if aimOn and cam then
-                    local t,pos=GetTarget()
-                    _currentTarget=t
-                    if t and pos then
-                        cam.CFrame=cam.CFrame:Lerp(
-                            CFrame.lookAt(cam.CFrame.Position,pos),
-                            AIM_STRENGTH
-                        )
-                    end
-                    SetMarker(showMarker and t or nil)
-                else
-                    _currentTarget=nil
-                    SetMarker(nil)
-                end
-                if cam then
-                    if camFovOn then
-                        camFovActive=true
-                        cam.FieldOfView=camFovVal
-                    elseif camFovActive then
-                        camFovActive=false
-                        cam.FieldOfView=origFov
-                    end
-                end
-                ApplySpeed()
-                ApplyJump()
-                DoFly()
-                if spinOn then
-                    local root=Root()
-                    if root then
-                        root.CFrame=root.CFrame
-                            *CFrame.Angles(0,math.rad(spinSpeed)*dt,0)
-                    end
-                end
-            end)
-            if not ok then
-                warn("[09] Motor original pausado en este frame: "..tostring(err))
-            end
-        end
-    )
-end)
-
-pcall(function()
-    RunService:BindToRenderStep(
-        "09EspStep",
-        Enum.RenderPriority.Camera.Value+2,
-        function()
-            local ok,err=pcall(EspStep)
-            if not ok then
-                warn("[09] ESP original pausada: "..tostring(err))
-            end
-        end
-    )
-end)
-
-local StirlaxCleanup
-do
-
-local STIRLAX_CFG={
-    esp={
-        enabled=false,
-        boxes=true,
-        corners=true,
-        names=true,
-        distance=true,
-        health=true,
-        tracers=false,
-        arrows=true,
-        wall=false,
-        onlyAlive=true,
-        hpColor=true,
-        range=1500,
-        thickness=1.5,
-        boxScale=1
-    },
-    aim={
-        enabled=false,
-        wall=false,
-        alwaysOn=false,
-        showFov=true,
-        showMarker=true,
-        fov=140,
-        strength=.22,
-        range=650,
-        bone="Head",
-        priority="Center"
-    },
-    fly={
-        enabled=false,
-        speed=95,
-        vertical=70,
-        acceleration=.22,
-        deceleration=.28
-    },
-    worldFade={
-        enabled=false,
-        amount=.52
-    },
-    tool={
-        enabled=false,
-        cooldown=.08
-    }
-}
-
-local STIRLAX_LAYER=N("Frame",{
-    Name="StirlaxEspLayer",
-    Size=UDim2.fromScale(1,1),
-    BackgroundTransparency=1,
-    ZIndex=0,
-    Parent=Gui
-})
-
-local STIRLAX_FOV=N("Frame",{
-    Name="StirlaxFovCircle",
-    Size=UDim2.fromOffset(STIRLAX_CFG.aim.fov*2,STIRLAX_CFG.aim.fov*2),
-    Position=UDim2.fromScale(.5,.5),
-    AnchorPoint=Vector2.new(.5,.5),
-    BackgroundTransparency=1,
-    Visible=false,
-    ZIndex=2,
-    Parent=Gui
-})
-
-R(STIRLAX_FOV,300)
-S(STIRLAX_FOV,C.gold,1.5)
-
-local STIRLAX_STATUS=T(
-    Pages.STIRLAX,
-    "STIRLAX: standby · motor original 09 intacto",
-    UDim2.new(1,-40,0,14),
-    UDim2.fromOffset(20,53),
-    9,
-    C.gray,
-    Enum.Font.GothamMedium
-)
-
-local stEspEntries={}
-local stAimMarker=nil
-local stAimMarkerTarget=nil
-local stWorldParts={}
-local stWorldConnection=nil
-local stFlyConnection=nil
-local stFlyAttachment=nil
-local stLinearVelocity=nil
-local stAlignOrientation=nil
-local stToolConnection=nil
-local stToolLast=0
-local stSavedPreset=nil
-
-local function StirlaxStatus(text,color)
-    if STIRLAX_STATUS and STIRLAX_STATUS.Parent then
-        STIRLAX_STATUS.Text="STIRLAX: "..text
-        STIRLAX_STATUS.TextColor3=color or C.gray
-        Notify("STIRLAX",text,color or C.gray)
-    end
-end
-
-local function StirlaxTargetPart(model,bone)
-    if not model then
-        return nil,nil
-    end
-
-    local head=model:FindFirstChild("Head")
-    local torso=model:FindFirstChild("UpperTorso")
-        or model:FindFirstChild("Torso")
-        or model:FindFirstChild("HumanoidRootPart")
-        or model.PrimaryPart
-    local lower=model:FindFirstChild("LowerTorso") or torso
-    local part=bone=="Head" and (head or torso)
-        or bone=="Neck" and (head or torso)
-        or bone=="Chest" and (torso or head)
-        or (lower or torso or head)
-
-    if not part or not part:IsA("BasePart") then
-        return nil,nil
-    end
-
-    local offset=Vector3.zero
-    if bone=="Neck" and head then
-        part=head
-        offset=Vector3.new(0,-head.Size.Y*.42,0)
-    elseif bone=="Hip" and part==lower then
-        offset=Vector3.new(0,-math.max(lower.Size.Y*.18,.05),0)
-    end
-
-    return part,part.CFrame:PointToWorldSpace(offset)
-end
-
-local function StirlaxVisible(camera,model,point,forAim)
-    local check=forAim and STIRLAX_CFG.aim.wall or STIRLAX_CFG.esp.wall
-    if not check then
-        return true
-    end
-
-    local params=RaycastParams.new()
-    params.FilterType=Enum.RaycastFilterType.Exclude
-    local filter={model}
-    if LP.Character then
-        table.insert(filter,LP.Character)
-    end
-    params.FilterDescendantsInstances=filter
-    local hit=workspace:Raycast(camera.CFrame.Position,point-camera.CFrame.Position,params)
-    return hit==nil
-end
-
-local function StirlaxNewEspEntry()
-    local e={}
-
-    e.box=N("Frame",{
-        AnchorPoint=Vector2.new(.5,.5),
-        BackgroundTransparency=1,
-        BorderSizePixel=0,
-        Visible=false,
-        ZIndex=3,
-        Parent=STIRLAX_LAYER
-    })
-
-    e.stroke=N("UIStroke",{
-        Color=C.blue,
-        Thickness=1.5,
-        Transparency=.15,
-        Parent=e.box
-    })
-
-    e.corners={}
-    for i=1,8 do
-        e.corners[i]=N("Frame",{
-            BackgroundColor3=C.blue,
-            BorderSizePixel=0,
-            Visible=false,
-            ZIndex=4,
-            Parent=e.box
-        })
-    end
-
-    e.name=T(STIRLAX_LAYER,"",UDim2.fromOffset(220,16),nil,11,C.white,Enum.Font.GothamBold)
-    e.name.AnchorPoint=Vector2.new(.5,1)
-    e.name.TextXAlignment=Enum.TextXAlignment.Center
-    e.name.TextStrokeColor3=C.black
-    e.name.TextStrokeTransparency=.12
-    e.name.Visible=false
-    e.name.ZIndex=5
-
-    e.dist=T(STIRLAX_LAYER,"",UDim2.fromOffset(220,15),nil,10,C.gray,Enum.Font.GothamBold)
-    e.dist.AnchorPoint=Vector2.new(.5,0)
-    e.dist.TextXAlignment=Enum.TextXAlignment.Center
-    e.dist.TextStrokeColor3=C.black
-    e.dist.TextStrokeTransparency=.12
-    e.dist.Visible=false
-    e.dist.ZIndex=5
-
-    e.healthBack=N("Frame",{
-        AnchorPoint=Vector2.new(.5,.5),
-        BackgroundColor3=Color3.new(0,0,0),
-        BackgroundTransparency=.28,
-        BorderSizePixel=0,
-        Visible=false,
-        ZIndex=4,
-        Parent=STIRLAX_LAYER
-    })
-    R(e.healthBack,2)
-
-    e.health=N("Frame",{
-        AnchorPoint=Vector2.new(0,1),
-        Position=UDim2.new(0,1,1,-1),
-        Size=UDim2.new(1,-2,1),
-        BackgroundColor3=C.green,
-        BorderSizePixel=0,
-        ZIndex=5,
-        Parent=e.healthBack
-    })
-    R(e.health,2)
-
-    e.tracer=N("Frame",{
-        AnchorPoint=Vector2.new(.5,.5),
-        BackgroundColor3=C.blue,
-        BorderSizePixel=0,
-        Visible=false,
-        ZIndex=2,
-        Parent=STIRLAX_LAYER
-    })
-    R(e.tracer,3)
-
-    e.arrow=T(STIRLAX_LAYER,"◆",UDim2.fromOffset(30,30),nil,18,C.gold,Enum.Font.GothamBlack)
-    e.arrow.AnchorPoint=Vector2.new(.5,.5)
-    e.arrow.TextXAlignment=Enum.TextXAlignment.Center
-    e.arrow.TextStrokeColor3=C.black
-    e.arrow.TextStrokeTransparency=.15
-    e.arrow.Visible=false
-    e.arrow.ZIndex=6
-
-    return e
-end
-
-local function StirlaxHideEsp(e)
-    e.box.Visible=false
-    e.name.Visible=false
-    e.dist.Visible=false
-    e.healthBack.Visible=false
-    e.tracer.Visible=false
-    e.arrow.Visible=false
-    for _,corner in ipairs(e.corners) do
-        corner.Visible=false
-    end
-end
-
-local function StirlaxDestroyEsp(e)
-    for _,object in ipairs({e.box,e.name,e.dist,e.healthBack,e.tracer,e.arrow}) do
-        if object and object.Parent then
-            object:Destroy()
-        end
-    end
-end
-
-local function StirlaxCornerLayout(e,width,height,thickness,color)
-    local length=math.clamp(math.min(width,height)*.28,6,20)
-    local data={
-        {UDim2.fromOffset(0,0),UDim2.fromOffset(length,thickness)},
-        {UDim2.fromOffset(0,0),UDim2.fromOffset(thickness,length)},
-        {UDim2.new(1,-length,0,0),UDim2.fromOffset(length,thickness)},
-        {UDim2.new(1,-thickness,0,0),UDim2.fromOffset(thickness,length)},
-        {UDim2.new(0,0,1,-length),UDim2.fromOffset(thickness,length)},
-        {UDim2.new(0,0,1,-thickness),UDim2.fromOffset(length,thickness)},
-        {UDim2.new(1,-thickness,1,-length),UDim2.fromOffset(thickness,length)},
-        {UDim2.new(1,-length,1,-thickness),UDim2.fromOffset(length,thickness)}
-    }
-
-    for i,corner in ipairs(e.corners) do
-        corner.Position=data[i][1]
-        corner.Size=data[i][2]
-        corner.BackgroundColor3=color
-        corner.Visible=STIRLAX_CFG.esp.corners and STIRLAX_CFG.esp.boxes
-    end
-end
-
-local function StirlaxWorldPointBox(camera,model)
-    local ok,cf,size=pcall(model.GetBoundingBox,model)
-    if not ok or not cf or not size then
-        return nil
-    end
-
-    local minX,minY=math.huge,math.huge
-    local maxX,maxY=-math.huge,-math.huge
-    local front=true
-
-    for ix=-1,1,2 do
-        for iy=-1,1,2 do
-            for iz=-1,1,2 do
-                local point=cf:PointToWorldSpace(Vector3.new(size.X*ix,size.Y*iy,size.Z*iz)/2)
-                local view=camera:WorldToViewportPoint(point)
-                if view.Z<=0 then front=false end
-                minX=math.min(minX,view.X)
-                minY=math.min(minY,view.Y)
-                maxX=math.max(maxX,view.X)
-                maxY=math.max(maxY,view.Y)
-            end
-        end
-    end
-
-    return {
-        minX=minX,
-        minY=minY,
-        maxX=maxX,
-        maxY=maxY,
-        front=front,
-        center=cf.Position
-    }
-end
-
-local function StirlaxEspStep()
-    local now=os.clock()
-    if now-UI.stirlaxEspLast<1/math.max(UI.espUpdateRate,1) then
-        return
-    end
-    UI.stirlaxEspLast=now
-    local camera=workspace.CurrentCamera
-    local cfg=STIRLAX_CFG.esp
-    local any=cfg.enabled and (cfg.boxes or cfg.names or cfg.distance or cfg.health or cfg.tracers or cfg.arrows)
-    local models={}
-
-    UI.targetCount=0
-    if any and camera then
-        for index,model in ipairs(TargetModels()) do
-            if index>UI.espMaxTargets then
-                break
-            end
-            if not UI.IsFriendly(model) then
-                models[model]=true
-            end
-        end
-    end
-
-    for model,entry in pairs(stEspEntries) do
-        if not models[model] or not model.Parent then
-            StirlaxDestroyEsp(entry)
-            stEspEntries[model]=nil
-        end
-    end
-
-    if not any or not camera then
-        return
-    end
-
-    local viewport=camera.ViewportSize
-    local root=Root()
-    local origin=root and root.Position or camera.CFrame.Position
-
-    for model in pairs(models) do
-        UI.targetCount+=1
-        local entry=stEspEntries[model]
-        if not entry then
-            entry=StirlaxNewEspEntry()
-            stEspEntries[model]=entry
-        end
-
-        local hum=model:FindFirstChildOfClass("Humanoid")
-        local alive=not hum or hum.Health>0
-        local box=StirlaxWorldPointBox(camera,model)
-        local shown=false
-
-        if alive and (not cfg.onlyAlive or alive) and box then
-            local minX=box.minX
-            local minY=box.minY
-            local maxX=box.maxX
-            local maxY=box.maxY
-            local front=box.front
-            local center=box.center
-            local distance=(center-origin).Magnitude
-
-            if distance<=cfg.range and front and (not cfg.wall or StirlaxVisible(camera,model,center,false)) then
-                local boxScale=math.clamp(cfg.boxScale or 1,.5,2)
-                local width=math.max((maxX-minX)*boxScale,6)
-                local height=math.max((maxY-minY)*boxScale,8)
-                local centerX=(minX+maxX)/2
-                local centerY=(minY+maxY)/2
-                local frac=hum and math.clamp(hum.Health/math.max(hum.MaxHealth,1),0,1) or 1
-                local color=(cfg.hpColor and hum) and Color3.fromHSV(frac*.33,.9,1) or C.blue
-                local thickness=math.clamp(cfg.thickness,1,4)
-                shown=true
-
-                entry.box.Position=UDim2.fromOffset(centerX,centerY)
-                entry.box.Size=UDim2.fromOffset(width,height)
-                entry.stroke.Color=color
-                entry.stroke.Thickness=thickness
-                entry.stroke.Transparency=cfg.corners and 1 or .12
-                entry.box.Visible=cfg.boxes
-                StirlaxCornerLayout(entry,width,height,thickness,color)
-
-                entry.name.Text=model.Name
-                entry.name.Position=UDim2.fromOffset(centerX,minY-3)
-                entry.name.Visible=cfg.names
-
-                entry.dist.Text=string.format("%d studs",math.floor(distance+.5))
-                entry.dist.Position=UDim2.fromOffset(centerX,maxY+3)
-                entry.dist.Visible=cfg.distance
-
-                entry.healthBack.Position=UDim2.fromOffset(minX-8,centerY)
-                entry.healthBack.Size=UDim2.fromOffset(4,math.clamp(height*.72,10,72))
-                entry.health.Size=UDim2.new(1,-2,frac,-1)
-                entry.health.BackgroundColor3=color
-                entry.healthBack.Visible=cfg.health and hum~=nil
-
-                local start=Vector2.new(viewport.X/2,viewport.Y-18)
-                local finish=Vector2.new(centerX,maxY)
-                local delta=finish-start
-                entry.tracer.Position=UDim2.fromOffset((start.X+finish.X)/2,(start.Y+finish.Y)/2)
-                entry.tracer.Size=UDim2.fromOffset(delta.Magnitude,thickness)
-                entry.tracer.Rotation=math.deg(math.atan2(delta.Y,delta.X))
-                entry.tracer.BackgroundColor3=color
-                entry.tracer.Visible=cfg.tracers
-            end
-        end
-
-        if not shown then
-            StirlaxHideEsp(entry)
-        end
-
-        if cfg.arrows and any and box and not shown then
-            local view=camera:WorldToViewportPoint(box.center)
-            local screenCenter=Vector2.new(viewport.X/2,viewport.Y/2)
-            local direction=Vector2.new(view.X,view.Y)-screenCenter
-            if direction.Magnitude<.01 then direction=Vector2.new(0,-1) end
-            if view.Z<0 then direction=-direction end
-            local radius=math.max(24,math.min(viewport.X,viewport.Y)/2-30)
-            local point=screenCenter+direction.Unit*radius
-            entry.arrow.Position=UDim2.fromOffset(math.clamp(point.X,18,viewport.X-18),math.clamp(point.Y,18,viewport.Y-18))
-            entry.arrow.Rotation=math.deg(math.atan2(direction.Y,direction.X))+90
-            entry.arrow.TextColor3=C.gold
-            entry.arrow.Visible=true
-        end
-    end
-end
-
-local function StirlaxUpdateFov()
-    STIRLAX_FOV.Size=UDim2.fromOffset(STIRLAX_CFG.aim.fov*2,STIRLAX_CFG.aim.fov*2)
-    STIRLAX_FOV.Visible=STIRLAX_CFG.aim.enabled and STIRLAX_CFG.aim.showFov
-end
-
-local function StirlaxSetMarker(part)
-    if part==stAimMarkerTarget then
-        if part==nil then
-            return
-        end
-        if STIRLAX_CFG.aim.showMarker and stAimMarker then
-            return
-        end
-        if not STIRLAX_CFG.aim.showMarker and not stAimMarker then
-            return
-        end
-    end
-
-    if stAimMarker then
-        stAimMarker:Destroy()
-        stAimMarker=nil
-    end
-    stAimMarkerTarget=part
-
-    if part and STIRLAX_CFG.aim.showMarker then
-        stAimMarker=N("BillboardGui",{
-            Adornee=part,
-            Size=UDim2.fromOffset(150,34),
-            AlwaysOnTop=true,
-            Parent=part
-        })
-        T(stAimMarker,"STIRLAX AIM",UDim2.fromScale(1,1),nil,12,C.gold,Enum.Font.GothamBold).TextXAlignment=Enum.TextXAlignment.Center
-    end
-end
-
-local function StirlaxAimHeld()
-    if STIRLAX_CFG.aim.alwaysOn then
-        return true
-    end
-    if UI.aimToggleMode and UI.aimToggled then
-        return true
-    end
-    if UI.aimHoldMode then
-        return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-            or UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-    end
-    return false
-end
-
-Track(UIS.InputBegan:Connect(function(input,gp)
-    if gp then
-        return
-    end
-    if input.UserInputType==Enum.UserInputType.MouseButton2 and UI.aimToggleMode then
-        UI.aimToggled=not UI.aimToggled
-    end
-    if input.KeyCode==Enum.KeyCode.Q and UI.aimSwitchTarget then
-        UI.skipAimModel=stAimMarkerTarget and stAimMarkerTarget.Parent
-        UI.lockedAimPart=nil
-        StirlaxSetMarker(nil)
-    end
-end))
-
-local function StirlaxAimTarget()
-    local camera=workspace.CurrentCamera
-    local root=Root()
-    if not camera or not root then
-        return nil,nil
-    end
-
-    local center=Vector2.new(camera.ViewportSize.X/2,camera.ViewportSize.Y/2)
-    local best=STIRLAX_CFG.aim.priority=="Distance" and math.huge or STIRLAX_CFG.aim.fov
-    local bestPart,bestPosition=nil,nil
-
-    for _,model in ipairs(TargetModels()) do
-        if not UI.IsFriendly(model) and model~=UI.skipAimModel then
-            local hum=model:FindFirstChildOfClass("Humanoid")
-        local part,position=StirlaxTargetPart(model,STIRLAX_CFG.aim.bone)
-        if part and position and (not hum or hum.Health>0) then
-            local distance=(position-root.Position).Magnitude
-            if distance<=STIRLAX_CFG.aim.range then
-                local view,onScreen=camera:WorldToViewportPoint(position)
-                if onScreen and view.Z>0 then
-                    local screenDistance=(Vector2.new(view.X,view.Y)-center).Magnitude
-                    local candidate=STIRLAX_CFG.aim.priority=="Distance" and distance or screenDistance
-                    if screenDistance<=STIRLAX_CFG.aim.fov and candidate<=best and StirlaxVisible(camera,model,position,true) then
-                        best=candidate
-                        bestPart=part
-                        bestPosition=position
-                    end
-                end
-            end
-        end
-        end
-    end
-
-    UI.skipAimModel=nil
-    return bestPart,bestPosition
-end
-
-local function StirlaxAimStep()
-    local camera=workspace.CurrentCamera
-    if not STIRLAX_CFG.aim.enabled or not camera or not StirlaxAimHeld() then
-        UI.lockedAimPart=nil
-        StirlaxSetMarker(nil)
-        return
-    end
-
-    local part,position
-    if UI.aimTargetLock and UI.lockedAimPart and UI.lockedAimPart.Parent then
-        part=UI.lockedAimPart
-        position=part.Position
-    else
-        part,position=StirlaxAimTarget()
-        if UI.aimTargetLock then
-            UI.lockedAimPart=part
-        end
-    end
-
-    if part and position then
-        local view=camera:WorldToViewportPoint(position)
-        local center=Vector2.new(camera.ViewportSize.X/2,camera.ViewportSize.Y/2)
-        local screenDistance=(Vector2.new(view.X,view.Y)-center).Magnitude
-        StirlaxSetMarker(part)
-        if screenDistance<=UI.aimDeadzone then
-            return
-        end
-        local strength=math.clamp(STIRLAX_CFG.aim.strength,.01,1)
-        camera.CFrame=camera.CFrame:Lerp(CFrame.lookAt(camera.CFrame.Position,position),strength)
-    else
-        UI.lockedAimPart=nil
-        StirlaxSetMarker(nil)
-    end
-end
-
-local function StirlaxStopFly()
-    STIRLAX_CFG.fly.enabled=false
-    if stFlyConnection then
-        SafeDisconnect(stFlyConnection)
-        stFlyConnection=nil
-    end
-    if stLinearVelocity then stLinearVelocity:Destroy(); stLinearVelocity=nil end
-    if stAlignOrientation then stAlignOrientation:Destroy(); stAlignOrientation=nil end
-    if stFlyAttachment then stFlyAttachment:Destroy(); stFlyAttachment=nil end
-
-    local hum=Hum()
-    local root=Root()
-    if hum then
-        hum.PlatformStand=false
-        hum.AutoRotate=true
-        if hum.Health>0 then
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-    end
-    if root then root.AssemblyLinearVelocity=Vector3.zero end
-end
-
-local function StirlaxStartFly()
-    if flyOn then
-        StirlaxStatus("fly avanzado bloqueado: apaga FLY original",C.red)
-        return false
-    end
-
-    local root=Root()
-    local hum=Hum()
-    if not root or not hum or hum.Health<=0 then
-        StirlaxStatus("fly esperando personaje",C.red)
-        return false
-    end
-
-    StirlaxStopFly()
-    STIRLAX_CFG.fly.enabled=true
-    hum.PlatformStand=true
-    hum.AutoRotate=false
-    hum:ChangeState(Enum.HumanoidStateType.Physics)
-
-    stFlyAttachment=N("Attachment",{Name="StirlaxFlyAttachment",Parent=root})
-    stLinearVelocity=N("LinearVelocity",{
-        Name="StirlaxLinearVelocity",
-        Attachment0=stFlyAttachment,
-        RelativeTo=Enum.ActuatorRelativeTo.World,
-        VelocityConstraintMode=Enum.VelocityConstraintMode.Vector,
-        ForceLimitsEnabled=false,
-        VectorVelocity=Vector3.zero,
-        Parent=root
-    })
-    stAlignOrientation=N("AlignOrientation",{
-        Name="StirlaxAlignOrientation",
-        Attachment0=stFlyAttachment,
-        Mode=Enum.OrientationAlignmentMode.OneAttachment,
-        RigidityEnabled=false,
-        Responsiveness=35,
-        MaxTorque=1000000,
-        Parent=root
-    })
-
-    stFlyConnection=RunService.RenderStepped:Connect(function()
-        local ok,err=pcall(function()
-        if not STIRLAX_CFG.fly.enabled or not root.Parent or hum.Health<=0 then
-            StirlaxStopFly()
-            return
-        end
-
-        local camera=workspace.CurrentCamera
-        if not camera or not stLinearVelocity or not stAlignOrientation then
-            return
-        end
-
-        local look=camera.CFrame.LookVector
-        local right=camera.CFrame.RightVector
-        local flatLook=Vector3.new(look.X,0,look.Z)
-        local flatRight=Vector3.new(right.X,0,right.Z)
-        flatLook=flatLook.Magnitude>.001 and flatLook.Unit or Vector3.new(0,0,-1)
-        flatRight=flatRight.Magnitude>.001 and flatRight.Unit or Vector3.new(1,0,0)
-
-        local direction=Vector3.zero
-        if UIS:IsKeyDown(Enum.KeyCode.W) or UIS:IsKeyDown(Enum.KeyCode.Up) or UI.flyKeys[Enum.KeyCode.W] then direction+=flatLook end
-        if UIS:IsKeyDown(Enum.KeyCode.S) or UIS:IsKeyDown(Enum.KeyCode.Down) or UI.flyKeys[Enum.KeyCode.S] then direction-=flatLook end
-        if UIS:IsKeyDown(Enum.KeyCode.A) or UIS:IsKeyDown(Enum.KeyCode.Left) or UI.flyKeys[Enum.KeyCode.A] then direction-=flatRight end
-        if UIS:IsKeyDown(Enum.KeyCode.D) or UIS:IsKeyDown(Enum.KeyCode.Right) or UI.flyKeys[Enum.KeyCode.D] then direction+=flatRight end
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then direction+=Vector3.yAxis end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift) then direction-=Vector3.yAxis end
-        if direction.Magnitude<.001 and hum.MoveDirection.Magnitude>.05 then
-            direction=Vector3.new(hum.MoveDirection.X,0,hum.MoveDirection.Z)
-        end
-        if direction.Magnitude>1 then direction=direction.Unit end
-
-        local horizontal=Vector3.new(direction.X,0,direction.Z)
-        local target=(horizontal.Magnitude>.001 and horizontal.Unit*STIRLAX_CFG.fly.speed or Vector3.zero)
-            +Vector3.new(0,direction.Y*STIRLAX_CFG.fly.vertical,0)
-        local blend=direction.Magnitude>.001 and STIRLAX_CFG.fly.acceleration or STIRLAX_CFG.fly.deceleration
-        stLinearVelocity.VectorVelocity=stLinearVelocity.VectorVelocity:Lerp(target,math.clamp(blend,.02,1))
-
-        local facing=Vector3.new(look.X,0,look.Z)
-        if facing.Magnitude>.001 then
-            stAlignOrientation.CFrame=CFrame.lookAt(root.Position,root.Position+facing.Unit)
-        end
-        end)
-        if not ok then
-            warn("[09] Fly STIRLAX pausado en este frame: "..tostring(err))
-            StirlaxStopFly()
-        end
-    end)
-
-    StirlaxStatus("fly avanzado activo · WASD / espacio / shift",C.green)
-    return true
-end
-
-local function StirlaxSetFly(on)
-    if on then
-        if not StirlaxStartFly() then
-            STIRLAX_CFG.fly.enabled=false
-        end
-    else
-        StirlaxStopFly()
-        StirlaxStatus("fly avanzado apagado",C.gray)
-    end
-end
-
-UI.SetMobileFly=function(on)
-    UI.flyMobile=on and true or false
-    table.clear(UI.flyKeys)
-    if UI.flyPad then
-        UI.flyPad:Destroy()
-        UI.flyPad=nil
-    end
-    if not on then
-        return
-    end
-    local pad=N("Frame",{
-        Name="StirlaxFlyMobilePad",
-        Size=UDim2.fromOffset(142,94),
-        Position=UDim2.new(0,18,1,-112),
-        BackgroundColor3=C.glass,
-        BackgroundTransparency=.12,
-        BorderSizePixel=0,
-        ZIndex=80,
-        Parent=Gui
-    })
-    R(pad,14)
-    S(pad,C.red,1)
-    UI.flyPad=pad
-    local function bind(text,key,pos)
-        local button=B(pad,text,UDim2.fromOffset(38,32),pos)
-        button.ZIndex=81
-        button.TextColor3=C.red
-        button.InputBegan:Connect(function(input)
-            if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
-                UI.flyKeys[key]=true
-            end
-        end)
-        button.InputEnded:Connect(function(input)
-            if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
-                UI.flyKeys[key]=nil
-            end
-        end)
-    end
-    bind("W",Enum.KeyCode.W,UDim2.fromOffset(52,6))
-    bind("A",Enum.KeyCode.A,UDim2.fromOffset(10,48))
-    bind("S",Enum.KeyCode.S,UDim2.fromOffset(52,48))
-    bind("D",Enum.KeyCode.D,UDim2.fromOffset(94,48))
-end
-
-local function StirlaxAuthorizedDescendant(object)
-    local folder=workspace:FindFirstChild("Targets")
-    if folder and object:IsDescendantOf(folder) then
-        return true
-    end
-    for _,model in ipairs(CollectionService:GetTagged("Target")) do
-        if object:IsDescendantOf(model) then
-            return true
-        end
-    end
-    return false
-end
-
-UI.ShouldExcludeFade=function(object)
-    local characters=LP.Character and object:IsDescendantOf(LP.Character)
-    local targets=StirlaxAuthorizedDescendant(object)
-    if UI.worldFadeExclusion=="Characters" then return characters end
-    if UI.worldFadeExclusion=="Targets" then return targets end
-    if UI.worldFadeExclusion=="Both" then return characters or targets end
-    return false
-end
-
-local function StirlaxApplyFade(object)
-    if object:IsA("BasePart") and not UI.ShouldExcludeFade(object) then
-        if stWorldParts[object]==nil then
-            stWorldParts[object]=object.LocalTransparencyModifier
-        end
-        object.LocalTransparencyModifier=math.max(object.LocalTransparencyModifier,STIRLAX_CFG.worldFade.amount)
-    end
-end
-
-local function StirlaxSetWorldFade(on)
-    if stWorldConnection then
-        SafeDisconnect(stWorldConnection)
-        stWorldConnection=nil
-    end
-
-    STIRLAX_CFG.worldFade.enabled=on and true or false
-    if on then
-        for _,object in ipairs(workspace:GetDescendants()) do
-            StirlaxApplyFade(object)
-        end
-        stWorldConnection=workspace.DescendantAdded:Connect(StirlaxApplyFade)
-        StirlaxStatus("world fade activo",C.green)
-    else
-        for object,transparency in pairs(stWorldParts) do
-            if object and object.Parent then
-                object.LocalTransparencyModifier=transparency
-            end
-        end
-        table.clear(stWorldParts)
-        StirlaxStatus("world fade restaurado",C.gray)
-    end
-end
-
-local function StirlaxSetToolAssist(on)
-    if stToolConnection then
-        SafeDisconnect(stToolConnection)
-        stToolConnection=nil
-    end
-
-    STIRLAX_CFG.tool.enabled=on and true or false
-    if on then
-        stToolConnection=RunService.RenderStepped:Connect(function()
-            local ok,err=pcall(function()
-            local character=LP.Character
-            local tool=character and character:FindFirstChildOfClass("Tool")
-            local authorized=tool and (tool:GetAttribute("STIRLAXToolAssist")==true or tool:GetAttribute("FXRapidFire")==true)
-            local allowed=UI.toolWhitelist=="Any" or (UI.toolWhitelist=="Authorized" and authorized)
-            if tool and allowed and UI.toolWhitelist~="Disabled"
-                and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                local now=os.clock()
-                if now-stToolLast>=STIRLAX_CFG.tool.cooldown then
-                    stToolLast=now
-                    pcall(function() tool:Activate() end)
-                end
-            end
-            end)
-            if not ok then
-                warn("[09] Tool Assist STIRLAX pausado en este frame: "..tostring(err))
-            end
-        end)
-        StirlaxStatus("tool assist activo · solo herramientas autorizadas",C.green)
-    else
-        StirlaxStatus("tool assist apagado",C.gray)
-    end
-end
-
-local function StirlaxSavePreset()
-    stSavedPreset={
-        esp={enabled=STIRLAX_CFG.esp.enabled,boxes=STIRLAX_CFG.esp.boxes,corners=STIRLAX_CFG.esp.corners,names=STIRLAX_CFG.esp.names,distance=STIRLAX_CFG.esp.distance,health=STIRLAX_CFG.esp.health,tracers=STIRLAX_CFG.esp.tracers,arrows=STIRLAX_CFG.esp.arrows,wall=STIRLAX_CFG.esp.wall,range=STIRLAX_CFG.esp.range,thickness=STIRLAX_CFG.esp.thickness,boxScale=STIRLAX_CFG.esp.boxScale},
-        aim={enabled=STIRLAX_CFG.aim.enabled,alwaysOn=STIRLAX_CFG.aim.alwaysOn,showFov=STIRLAX_CFG.aim.showFov,showMarker=STIRLAX_CFG.aim.showMarker,wall=STIRLAX_CFG.aim.wall,fov=STIRLAX_CFG.aim.fov,strength=STIRLAX_CFG.aim.strength,range=STIRLAX_CFG.aim.range,bone=STIRLAX_CFG.aim.bone,priority=STIRLAX_CFG.aim.priority},
-        fly={speed=STIRLAX_CFG.fly.speed,vertical=STIRLAX_CFG.fly.vertical,acceleration=STIRLAX_CFG.fly.acceleration,deceleration=STIRLAX_CFG.fly.deceleration},
-        worldFade={enabled=STIRLAX_CFG.worldFade.enabled,amount=STIRLAX_CFG.worldFade.amount},
-        tool={enabled=STIRLAX_CFG.tool.enabled,cooldown=STIRLAX_CFG.tool.cooldown}
-    }
-    StirlaxStatus("preset guardado en esta sesión",C.gold)
-end
-
-local function StirlaxLoadPreset()
-    if not stSavedPreset then
-        StirlaxStatus("no hay preset guardado",C.red)
-        return
-    end
-
-    for section,data in pairs(stSavedPreset) do
-        for key,value in pairs(data) do
-            STIRLAX_CFG[section][key]=value
-        end
-    end
-
-    StirlaxUpdateFov()
-    StirlaxSetWorldFade(STIRLAX_CFG.worldFade.enabled)
-    StirlaxSetToolAssist(STIRLAX_CFG.tool.enabled)
-    if not STIRLAX_CFG.fly.enabled then
-        StirlaxStopFly()
-    end
-    StirlaxStatus("preset cargado; revisa los interruptores visuales",C.gold)
-end
-
-StirlaxCleanup=function()
-    StirlaxStopFly()
-    StirlaxSetWorldFade(false)
-    StirlaxSetToolAssist(false)
-    StirlaxSetMarker(nil)
-    STIRLAX_FOV.Visible=false
-    pcall(function() RunService:UnbindFromRenderStep("09StirlaxStep") end)
-    for model,entry in pairs(stEspEntries) do
-        StirlaxDestroyEsp(entry)
-        stEspEntries[model]=nil
-    end
-end
-
-pcall(function() RunService:UnbindFromRenderStep("09StirlaxStep") end)
-pcall(function()
-    RunService:BindToRenderStep("09StirlaxStep",Enum.RenderPriority.Camera.Value+3,function()
-        local ok,err=pcall(function()
-            StirlaxEspStep()
-            StirlaxAimStep()
-        end)
-        if not ok then
-            warn("[09] Motor STIRLAX pausado en este frame: "..tostring(err))
-        end
-    end)
-end)
-
-local StirlaxContent=Content(Pages.STIRLAX,392,54,66)
-local stOrder=0
-local function ST()
-    stOrder+=1
-    return stOrder
-end
-local stControls={}
-
-stControls.esp=MakeToggle(StirlaxContent,ST(),"STIRLAX ESP MOTOR",false,function(v)
-    STIRLAX_CFG.esp.enabled=v
-end)
-MakeToggle(StirlaxContent,ST(),"CAJAS PREMIUM",true,function(v)
-    STIRLAX_CFG.esp.boxes=v
-end)
-MakeToggle(StirlaxContent,ST(),"ESQUINAS DE CAJA",true,function(v)
-    STIRLAX_CFG.esp.corners=v
-end)
-MakeToggle(StirlaxContent,ST(),"NOMBRES Y DISTANCIA",true,function(v)
-    STIRLAX_CFG.esp.names=v
-    STIRLAX_CFG.esp.distance=v
-end)
-MakeToggle(StirlaxContent,ST(),"BARRA DE VIDA PROPORCIONAL",true,function(v)
-    STIRLAX_CFG.esp.health=v
-end)
-MakeToggle(StirlaxContent,ST(),"TRAZADORES STIRLAX",false,function(v)
-    STIRLAX_CFG.esp.tracers=v
-end)
-MakeToggle(StirlaxContent,ST(),"FLECHAS FUERA DE PANTALLA",true,function(v)
-    STIRLAX_CFG.esp.arrows=v
-end)
-MakeToggle(StirlaxContent,ST(),"WALL CHECK ESP",false,function(v)
-    STIRLAX_CFG.esp.wall=v
-end)
-MakeToggle(StirlaxContent,ST(),"COLOR DE VIDA",true,function(v)
-    STIRLAX_CFG.esp.hpColor=v
-end)
-MakeSlider(StirlaxContent,ST(),"RANGO ESP STIRLAX",50,3000,STIRLAX_CFG.esp.range,0," studs",function(v)
-    STIRLAX_CFG.esp.range=v
-end)
-MakeSlider(StirlaxContent,ST(),"GROSOR DE LINEA",1,4,STIRLAX_CFG.esp.thickness,1," px",function(v)
-    STIRLAX_CFG.esp.thickness=v
-end)
-MakeSelector(StirlaxContent,ST(),"TIPO DE CAJA",{
-    {"ESQUINAS","Corners"},
-    {"COMPLETA","Full"}
-},1,function(v)
-    STIRLAX_CFG.esp.corners=v=="Corners"
-end)
-
-stControls.aim=MakeToggle(StirlaxContent,ST(),"STIRLAX AIM ASSIST",false,function(v)
-    STIRLAX_CFG.aim.enabled=v
-    StirlaxUpdateFov()
-end)
-MakeToggle(StirlaxContent,ST(),"AIM SIEMPRE ACTIVO",false,function(v)
-    STIRLAX_CFG.aim.alwaysOn=v
-end)
-MakeToggle(StirlaxContent,ST(),"MOSTRAR FOV STIRLAX",true,function(v)
-    STIRLAX_CFG.aim.showFov=v
-    StirlaxUpdateFov()
-end)
-MakeToggle(StirlaxContent,ST(),"MARCADOR DEL OBJETIVO",true,function(v)
-    STIRLAX_CFG.aim.showMarker=v
-end)
-MakeToggle(StirlaxContent,ST(),"WALL CHECK AIM",false,function(v)
-    STIRLAX_CFG.aim.wall=v
-end)
-MakeSlider(StirlaxContent,ST(),"AIM FOV STIRLAX",20,500,STIRLAX_CFG.aim.fov,0," px",function(v)
-    STIRLAX_CFG.aim.fov=v
-    StirlaxUpdateFov()
-end)
-MakeSlider(StirlaxContent,ST(),"RESPUESTA AIM",.02,1,STIRLAX_CFG.aim.strength,2,"",function(v)
-    STIRLAX_CFG.aim.strength=v
-end)
-MakeSlider(StirlaxContent,ST(),"RANGO AIM STIRLAX",50,1500,STIRLAX_CFG.aim.range,0," studs",function(v)
-    STIRLAX_CFG.aim.range=v
-end)
-MakeSelector(StirlaxContent,ST(),"HUESO AIM",{
-    {"CABEZA","Head"},
-    {"CUELLO","Neck"},
-    {"PECHO","Chest"},
-    {"CADERA","Hip"}
-},1,function(v)
-    STIRLAX_CFG.aim.bone=v
-end)
-MakeSelector(StirlaxContent,ST(),"PRIORIDAD AIM",{
-    {"CENTRO","Center"},
-    {"DISTANCIA","Distance"}
-},1,function(v)
-    STIRLAX_CFG.aim.priority=v
-end)
-
-stControls.fly=MakeToggle(StirlaxContent,ST(),"STIRLAX FLY ESTABLE",false,function(v)
-    if v then
-        StirlaxSetFly(true)
-    else
-        StirlaxSetFly(false)
-    end
-end)
-MakeSlider(StirlaxContent,ST(),"VELOCIDAD FLY STIRLAX",30,220,STIRLAX_CFG.fly.speed,0," u/s",function(v)
-    STIRLAX_CFG.fly.speed=v
-end)
-MakeSlider(StirlaxContent,ST(),"VELOCIDAD VERTICAL",20,160,STIRLAX_CFG.fly.vertical,0," u/s",function(v)
-    STIRLAX_CFG.fly.vertical=v
-end)
-
-MakeToggle(StirlaxContent,ST(),"STIRLAX WORLD FADE",false,function(v)
-    StirlaxSetWorldFade(v)
-end)
-MakeSlider(StirlaxContent,ST(),"INTENSIDAD WORLD FADE",10,90,STIRLAX_CFG.worldFade.amount*100,0,"%",function(v)
-    STIRLAX_CFG.worldFade.amount=v/100
-    if STIRLAX_CFG.worldFade.enabled then
-        StirlaxSetWorldFade(true)
-    end
-end)
-MakeToggle(StirlaxContent,ST(),"STIRLAX TOOL ASSIST",false,function(v)
-    StirlaxSetToolAssist(v)
-end)
-MakeSlider(StirlaxContent,ST(),"COOLDOWN TOOL ASSIST",1,30,STIRLAX_CFG.tool.cooldown*100,0," x10 ms",function(v)
-    STIRLAX_CFG.tool.cooldown=v/1000
-end)
-MakeButton(StirlaxContent,ST(),"GUARDAR PRESET STIRLAX",StirlaxSavePreset)
-MakeButton(StirlaxContent,ST(),"CARGAR PRESET STIRLAX",StirlaxLoadPreset)
-
-MakeToggle(StirlaxContent,ST(),"AIM HOLD MODE",true,function(v)
-    UI.aimHoldMode=v
-end)
-MakeToggle(StirlaxContent,ST(),"AIM TOGGLE MODE",false,function(v)
-    UI.aimToggleMode=v
-    if not v then
-        UI.aimToggled=false
-    end
-end)
-MakeSlider(StirlaxContent,ST(),"AIM DEADZONE",0,160,UI.aimDeadzone,0," px",function(v)
-    UI.aimDeadzone=v
-end)
-MakeToggle(StirlaxContent,ST(),"AIM TARGET LOCK",false,function(v)
-    UI.aimTargetLock=v
-    if not v then
-        UI.lockedAimPart=nil
-    end
-end)
-MakeToggle(StirlaxContent,ST(),"AIM SWITCH TARGET",false,function(v)
-    UI.aimSwitchTarget=v
-end)
-MakeSlider(StirlaxContent,ST(),"ESP BOX SCALE",.5,2,STIRLAX_CFG.esp.boxScale,2,"x",function(v)
-    STIRLAX_CFG.esp.boxScale=v
-end)
-MakeSlider(StirlaxContent,ST(),"FLY ACCELERATION",.02,1,STIRLAX_CFG.fly.acceleration,2,"",function(v)
-    STIRLAX_CFG.fly.acceleration=v
-end)
-MakeSlider(StirlaxContent,ST(),"FLY DECELERATION",.02,1,STIRLAX_CFG.fly.deceleration,2,"",function(v)
-    STIRLAX_CFG.fly.deceleration=v
-end)
-
-MakeSelector(StirlaxContent,ST(),"WORLD FADE EXCLUSIONS",{
-    {"NINGUNA","None"},
-    {"PERSONAJE","Characters"},
-    {"TARGETS","Targets"},
-    {"AMBOS","Both"}
-},4,function(v)
-    UI.worldFadeExclusion=v
-    if STIRLAX_CFG.worldFade.enabled then
-        StirlaxSetWorldFade(true)
-    end
-end)
-MakeSelector(StirlaxContent,ST(),"TOOL WHITELIST",{
-    {"AUTORIZADAS","Authorized"},
-    {"CUALQUIER EQUIPADA","Any"},
-    {"DESACTIVADA","Disabled"}
-},1,function(v)
-    UI.toolWhitelist=v
-    if STIRLAX_CFG.tool.enabled then
-        StirlaxSetToolAssist(true)
-    end
-end)
-
-UI.SavePresetSlot=function(slot)
-    StirlaxSavePreset()
-    UI.presets[slot]={
-        stirlax=stSavedPreset,
-        redGlow=UI.redGlow,
-        particleDensity=UI.particleDensity,
-        performanceMode=UI.performanceMode,
-        reduceMotion=UI.reduceMotion,
-        particlesEnabled=UI.particlesEnabled,
-        espUpdateRate=UI.espUpdateRate,
-        espMaxTargets=UI.espMaxTargets,
-        espExcludeFriendly=UI.espExcludeFriendly,
-        notificationDuration=UI.notificationDuration,
-        compactLauncher=UI.compactLauncher,
-        lockMenu=UI.lockMenu,
-        menuKey=UI.menuKey,
-        worldFadeExclusion=UI.worldFadeExclusion,
-        toolWhitelist=UI.toolWhitelist,
-        aimHoldMode=UI.aimHoldMode,
-        aimToggleMode=UI.aimToggleMode,
-        aimDeadzone=UI.aimDeadzone,
-        aimTargetLock=UI.aimTargetLock,
-        aimSwitchTarget=UI.aimSwitchTarget,
-        flyMobile=UI.flyMobile
-    }
-    StirlaxStatus("preset "..tostring(slot).." guardado",C.gold)
-end
-
-UI.LoadPresetSlot=function(slot)
-    local data=UI.presets[slot]
-    if not data then
-        StirlaxStatus("preset "..tostring(slot).." vacio",C.red)
-        return
-    end
-    stSavedPreset=data.stirlax
-    StirlaxLoadPreset()
-    for _,key in ipairs({"redGlow","particleDensity","performanceMode","reduceMotion","particlesEnabled","espUpdateRate","espMaxTargets","espExcludeFriendly","notificationDuration","compactLauncher","lockMenu","menuKey","worldFadeExclusion","toolWhitelist","aimHoldMode","aimToggleMode","aimDeadzone","aimTargetLock","aimSwitchTarget","flyMobile"}) do
-        if data[key]~=nil then
-            UI[key]=data[key]
-        end
-    end
-    UI.BuildParticles()
-    UI.ApplyRedGlow()
-    UI.ApplyLauncherMode(UI.compactLauncher)
-    UI.ApplyMenuLock(UI.lockMenu)
-    UI.SetMobileFly(UI.flyMobile)
-    StirlaxStatus("preset "..tostring(slot).." cargado",C.gold)
-end
-
-UI.ResetAll=function()
-    for _,obj in ipairs(Toggles) do
-        if obj.Set and obj.Default~=nil then
-            obj.Set(obj.Default)
-        end
-    end
-    for _,obj in ipairs(UI.sliders) do
-        if obj.Set and obj.Default~=nil then
-            obj.Set(obj.Default)
-        end
-    end
-    for _,obj in ipairs(UI.selectors) do
-        if obj.Set and obj.Default~=nil then
-            obj.Set(obj.Default)
-        end
-    end
-    UI.aimToggled=false
-    UI.lockedAimPart=nil
-    UI.skipAimModel=nil
-    UI.menuKey=Enum.KeyCode.RightShift
-    if UI.menuKeyObject then
-        UI.menuKeyObject.SetKey(UI.menuKey)
-    end
-    UI.SetMobileFly(false)
-    UI.ApplyLauncherMode(false)
-    UI.ApplyMenuLock(false)
-    UI.ApplyRedGlow()
-    UI.BuildParticles()
-    StirlaxStatus("configuracion restaurada",C.gold)
-end
-
-MakeButton(StirlaxContent,ST(),"GUARDAR PRESET 1",function() UI.SavePresetSlot(1) end)
-MakeButton(StirlaxContent,ST(),"CARGAR PRESET 1",function() UI.LoadPresetSlot(1) end)
-
-UI.PerfContent=Content(Pages.PERF,392,54,66)
-UI.perfOrder=0
-UI.NextPerf=function()
-    UI.perfOrder+=1
-    return UI.perfOrder
-end
-MakeSelector(UI.PerfContent,UI.NextPerf(),"PERFORMANCE MODE",{
-    {"BAJO","Low"},
-    {"MEDIO","Medium"},
-    {"ALTO","High"}
-},3,function(v)
-    UI.performanceMode=v
-    UI.BuildParticles()
-end)
-MakeToggle(UI.PerfContent,UI.NextPerf(),"PARTICULAS ROJAS",true,function(v)
-    UI.particlesEnabled=v
-end)
-MakeSlider(UI.PerfContent,UI.NextPerf(),"RED PARTICLE DENSITY",10,100,UI.particleDensity,0,"%",function(v)
-    UI.particleDensity=v
-    UI.BuildParticles()
-end)
-MakeToggle(UI.PerfContent,UI.NextPerf(),"REDUCE MOTION",false,function(v)
-    UI.reduceMotion=v
-end)
-MakeSlider(UI.PerfContent,UI.NextPerf(),"ESP UPDATE RATE",5,60,UI.espUpdateRate,0," Hz",function(v)
-    UI.espUpdateRate=v
-end)
-MakeSlider(UI.PerfContent,UI.NextPerf(),"ESP MAX TARGETS",1,100,UI.espMaxTargets,0,"",function(v)
-    UI.espMaxTargets=v
-end)
-MakeToggle(UI.PerfContent,UI.NextPerf(),"ESP EXCLUDE FRIENDLY",false,function(v)
-    UI.espExcludeFriendly=v
-end)
-MakeToggle(UI.PerfContent,UI.NextPerf(),"FPS MONITOR",false,function(v)
-    UI.fpsMonitor=v
-end)
-MakeToggle(UI.PerfContent,UI.NextPerf(),"TARGET COUNTER",false,function(v)
-    UI.targetCounter=v
-end)
-
-UI.ConfigContent=Content(Pages.CONFIG,392,54,66)
-UI.configOrder=0
-UI.NextConfig=function()
-    UI.configOrder+=1
-    return UI.configOrder
-end
-UI.menuKeyObject=UI.MakeKeybind(UI.ConfigContent,UI.NextConfig(),"OPEN / CLOSE MENU",UI.menuKey,function()
-    SetMenuOpen(not menuOpen)
-end)
-MakeToggle(UI.ConfigContent,UI.NextConfig(),"COMPACT LAUNCHER",false,function(v)
-    UI.ApplyLauncherMode(v)
-end)
-MakeToggle(UI.ConfigContent,UI.NextConfig(),"LOCK MENU POSITION",false,function(v)
-    UI.ApplyMenuLock(v)
-end)
-MakeSlider(UI.ConfigContent,UI.NextConfig(),"RED GLOW INTENSITY",0,100,UI.redGlow*100,0,"%",function(v)
-    UI.redGlow=v/100
-    UI.ApplyRedGlow()
-end)
-MakeSlider(UI.ConfigContent,UI.NextConfig(),"NOTIFICATION DURATION",1,8,UI.notificationDuration,1," s",function(v)
-    UI.notificationDuration=v
-end)
-MakeToggle(UI.ConfigContent,UI.NextConfig(),"FLY MOBILE CONTROLS",false,function(v)
-    UI.SetMobileFly(v)
-end)
-MakeButton(UI.ConfigContent,UI.NextConfig(),"GUARDAR PRESET 2",function() UI.SavePresetSlot(2) end)
-MakeButton(UI.ConfigContent,UI.NextConfig(),"CARGAR PRESET 2",function() UI.LoadPresetSlot(2) end)
-MakeButton(UI.ConfigContent,UI.NextConfig(),"GUARDAR PRESET 3",function() UI.SavePresetSlot(3) end)
-MakeButton(UI.ConfigContent,UI.NextConfig(),"CARGAR PRESET 3",function() UI.LoadPresetSlot(3) end)
-MakeButton(UI.ConfigContent,UI.NextConfig(),"RESET ALL SETTINGS",UI.ResetAll)
-
-StirlaxUpdateFov()
-end
-
-
 local AMONG={
     red=Color3.fromRGB(197,17,17),
     blue=Color3.fromRGB(19,46,209),
@@ -3715,8 +1859,6 @@ local function Paint(model,store,key,anchored)
         end
     end
 end
-
-
 local Selected=LP
 local Model=nil
 local BaseY=0
@@ -3942,540 +2084,2164 @@ local function Update()
 end
 
 
-local MiscContent=Content(Pages.MISC,392,54,66)
-local mo=0
+local Engine={}
 
-local function M()
-    mo=mo+1
-    return mo
-end
-
-local strengthSlider
-
-MakeToggle(MiscContent,M(),"AIM",false,function(v)
-    aimOn=v
-    UpdateFov()
-end)
-
-MakeToggle(MiscContent,M(),"MARCADOR AIM",true,function(v)
-    showMarker=v
-end)
-
-MakeToggle(MiscContent,M(),"MOSTRAR CIRCULO FOV",true,function(v)
-    showFov=v
-    UpdateFov()
-end)
-
-MakeSlider(MiscContent,M(),"AIM FOV",20,600,AIM_FOV,0," px",function(v)
-    AIM_FOV=v
-    UpdateFov()
-end)
-
-MakeSlider(MiscContent,M(),"AIM RANGO",50,1000,AIM_RANGE,0," studs",function(v)
-    AIM_RANGE=v
-end)
-
-MakeSelector(MiscContent,M(),"MODO DE AIM",{
-    {"LEGIT (SUAVE)",.06},
-    {"MEDIO",.25},
-    {"RAPIDO",.8}
-},1,function(v)
-    AIM_STRENGTH=v
-
-    if strengthSlider then
-        strengthSlider.Set(v,true)
+local function AsPart(object)
+    if object and object:IsA("BasePart") then
+        return object
     end
-end)
-
-MakeSelector(MiscContent,M(),"OBJETIVO",{
-    {"CABEZA","Head"},
-    {"CUELLO","Neck"},
-    {"PECHO","Chest"}
-},1,function(v)
-    AIM_PART=v
-end)
-
-strengthSlider=MakeSlider(MiscContent,M(),"AIM FUERZA",.02,1,AIM_STRENGTH,2,"",function(v)
-    AIM_STRENGTH=v
-end)
-
-MakeToggle(MiscContent,M(),"SPEED",false,function(v)
-    speedOn=v
-end)
-
-MakeSlider(MiscContent,M(),"VELOCIDAD",16,200,speedVal,0,"",function(v)
-    speedVal=v
-end)
-
-MakeToggle(MiscContent,M(),"FLY (WASD + ESPACIO/SHIFT)",false,function(v)
-    flyOn=v
-end)
-
-MakeSlider(MiscContent,M(),"VELOCIDAD DE FLY",20,300,flySpeed,0,"",function(v)
-    flySpeed=v
-end)
-
-MakeToggle(MiscContent,M(),"NOCLIP",false,function(v)
-    noclipOn=v
-end)
-
-MakeToggle(MiscContent,M(),"SALTO INFINITO",false,function(v)
-    infJump=v
-end)
-
-MakeToggle(MiscContent,M(),"SALTO ALTO",false,function(v)
-    jumpOn=v
-end)
-
-MakeSlider(MiscContent,M(),"POTENCIA DE SALTO",50,300,jumpVal,0,"",function(v)
-    jumpVal=v
-end)
-
-MakeToggle(MiscContent,M(),"GRAVEDAD PERSONALIZADA",false,function(v)
-    gravityOn=v
-    ApplyGravity()
-end)
-
-MakeSlider(MiscContent,M(),"GRAVEDAD",20,400,gravityVal,0,"",function(v)
-    gravityVal=v
-    ApplyGravity()
-end)
-
-MakeToggle(MiscContent,M(),"CAMARA FOV",false,function(v)
-    camFovOn=v
-end)
-
-MakeSlider(MiscContent,M(),"CAMARA FOV VALOR",30,120,camFovVal,0,"°",function(v)
-    camFovVal=v
-end)
-
-MakeToggle(MiscContent,M(),"ZOOM LIBRE",false,function(v)
-    zoomOn=v
-    ApplyZoom()
-end)
-
-MakeToggle(MiscContent,M(),"GIRAR PERSONAJE",false,function(v)
-    spinOn=v
-end)
-
-MakeSlider(MiscContent,M(),"VELOCIDAD DE GIRO",30,1440,spinSpeed,0,"°/s",function(v)
-    spinSpeed=v
-end)
-
-MakeToggle(MiscContent,M(),"ANTI AFK",false,function(v)
-    antiAfk=v
-end)
-
-MakeToggle(MiscContent,M(),"CLICK TP (CTRL + CLIC)",false,function(v)
-    clickTp=v
-end)
-
-MakeButton(MiscContent,M(),"TP AL OBJETIVO CERCANO",TpTarget)
-
-MakeButton(MiscContent,M(),"REINICIAR PERSONAJE",ResetChar)
-
-
-local EspContent=Content(Pages.ESP,392,54,66)
-local eo=0
-
-local function E()
-    eo=eo+1
-    return eo
+    return nil
 end
 
-MakeToggle(EspContent,E(),"CAJAS",false,function(v)
-    espCfg.boxes=v
-end)
-
-MakeToggle(EspContent,E(),"NOMBRES",false,function(v)
-    espCfg.names=v
-end)
-
-MakeToggle(EspContent,E(),"DISTANCIA",false,function(v)
-    espCfg.dist=v
-end)
-
-MakeToggle(EspContent,E(),"BARRA DE VIDA",false,function(v)
-    espCfg.health=v
-end)
-
-MakeToggle(EspContent,E(),"TRAZADORES",false,function(v)
-    espCfg.tracers=v
-end)
-
-MakeToggle(EspContent,E(),"COLOR SEGUN VIDA",true,function(v)
-    espCfg.hpColor=v
-end)
-
-MakeSlider(EspContent,E(),"RANGO DEL ESP",50,2000,espCfg.range,0," studs",function(v)
-    espCfg.range=v
-end)
-
-MakeToggle(EspContent,E(),"X-RAY",false,function(v)
-    xrayOn=v
-    SyncHL()
-end)
-
-MakeSlider(EspContent,E(),"X-RAY RELLENO",0,1,xrayFill,2,"",function(v)
-    xrayFill=v
-    SyncHL()
-end)
-
-MakeToggle(EspContent,E(),"HIGHLIGHT AUTORIZADOS",false,function(v)
-    hlOn=v
-    SyncHL()
-end)
-
-MakeToggle(EspContent,E(),"FULLBRIGHT",false,function(v)
-    full=v
-    ApplyLighting()
-end)
-
-MakeToggle(EspContent,E(),"SIN NIEBLA",false,function(v)
-    noFog=v
-    ApplyLighting()
-end)
-
-MakeToggle(EspContent,E(),"SIN SOMBRAS",false,function(v)
-    noShadows=v
-    ApplyLighting()
-end)
-
-MakeToggle(EspContent,E(),"HORA FIJA",false,function(v)
-    hourOn=v
-    ApplyLighting()
-end)
-
-MakeSlider(EspContent,E(),"HORA DEL DIA",0,24,hourVal,1,"h",function(v)
-    hourVal=v
-    ApplyLighting()
-end)
-
-
-local SkinPage=Pages.SKINS
-
-MakeToggle(
-    SkinPage,
-    0,
-    "APLICAR SKIN A MI PERSONAJE",
-    true,
-    function(v)
-        ownSkinOn=v
-        ApplyOwn()
-    end,
-    UDim2.fromOffset(20,66)
-)
-
-local SkinGrid=Content(SkinPage,190,46,130)
-local skinCards={}
-
-local function SelectSkin(key)
-    skin=key
-
-    for k,c in pairs(skinCards) do
-        local sel=k==key
-
-        c.stroke.Thickness=sel and 2 or 1
-        c.stroke.Transparency=sel and 0 or .75
-        c.stroke.Color=sel and C.white or C.blue
+function Engine.Targets()
+    local now=os.clock()
+    if now-STATE.targetCacheTime<.2 then
+        return STATE.targetCache
     end
-
-    ApplySkin()
-end
-
-for i,s in ipairs(SKIN_LIST) do
-    local key,label=s[1],s[2]
-
-    local btn=N("TextButton",{
-        Text="",
-        AutoButtonColor=false,
-        BackgroundColor3=C.card,
-        BorderSizePixel=0,
-        LayoutOrder=i,
-        Parent=SkinGrid
-    })
-
-    R(btn,12)
-
-    local stroke=N("UIStroke",{
-        Color=C.blue,
-        Thickness=1,
-        Transparency=.75,
-        Parent=btn
-    })
-
-    local swatch=N("Frame",{
-        Size=UDim2.fromOffset(24,24),
-        Position=UDim2.new(0,12,.5,-12),
-        BackgroundColor3=AMONG[key]
-            or (key=="neon" and NEON_COLOR)
-            or (key=="freefire" and FF_ORANGE)
-            or C.gray,
-        BorderSizePixel=0,
-        Parent=btn
-    })
-
-    R(swatch,12)
-
-    T(
-        btn,
-        label,
-        UDim2.new(1,-54,1,0),
-        UDim2.fromOffset(46,0),
-        11,
-        C.white,
-        Enum.Font.GothamBold
-    )
-
-    btn.Activated:Connect(function()
-        SelectSkin(key)
+    local output={}
+    local seen={}
+    local own=LP.Character
+    local function add(model)
+        if typeof(model)=="Instance" and model:IsA("Model") and model~=own and not seen[model] and model:IsDescendantOf(workspace) then
+            seen[model]=true
+            table.insert(output,model)
+        end
+    end
+    local folder=workspace:FindFirstChild("Targets")
+    if folder then
+        for _,model in ipairs(folder:GetChildren()) do
+            add(model)
+        end
+    end
+    local ok,tagged=pcall(function()
+        return CollectionService:GetTagged("Target")
     end)
-
-    skinCards[key]={stroke=stroke}
+    if ok and type(tagged)=="table" then
+        for _,model in ipairs(tagged) do
+            add(model)
+        end
+    end
+    STATE.targetCache=output
+    STATE.targetCacheTime=now
+    STATE.targetCount=#output
+    return output
 end
 
-
-local function Page(name)
-    local peopleActive=name=="PEOPLE"
-    People.Visible=peopleActive
-    People.Active=peopleActive
-
-    for pageName,page in pairs(Pages) do
-        local active=pageName==name
-        page.Visible=active
-        page.Active=active
-        page.ZIndex=active and 10 or 1
+function Engine.IsFriendly(model)
+    if not CFG.ui.teamCheck then
+        return false
     end
-
-    for tabName,tab in pairs(tabs) do
-        tab.BackgroundColor3=
-            tabName==name and C.hover or C.card
+    local player=Players:GetPlayerFromCharacter(model)
+    if player and LP.Team and player.Team==LP.Team then
+        return true
     end
+    local team=model:GetAttribute("Team")
+    return team~=nil and LP.Team~=nil and tostring(team)==LP.Team.Name
 end
 
-for name,tab in pairs(tabs) do
-    tab.Activated:Connect(function()
-        Page(name)
-    end)
+function Engine.Parts(model)
+    local hum=model:FindFirstChildOfClass("Humanoid")
+    local root=AsPart(model:FindFirstChild("HumanoidRootPart"))
+        or AsPart(model.PrimaryPart)
+        or AsPart(model:FindFirstChild("UpperTorso"))
+        or AsPart(model:FindFirstChild("Torso"))
+        or model:FindFirstChildWhichIsA("BasePart",true)
+    local head=AsPart(model:FindFirstChild("Head"))
+    return hum,root,head
 end
 
-
-Track(UIS.InputBegan:Connect(function(input,gp)
-    if input.UserInputType~=Enum.UserInputType.Keyboard then
-        return
+function Engine.BonePoint(model,bone)
+    local _,root,head=Engine.Parts(model)
+    local upper=AsPart(model:FindFirstChild("UpperTorso")) or AsPart(model:FindFirstChild("Torso"))
+    local lower=AsPart(model:FindFirstChild("LowerTorso"))
+    if bone=="Head" and head then
+        return head,head.Position
     end
+    if bone=="Neck" and head then
+        return head,head.Position-head.CFrame.UpVector*(head.Size.Y*.45)
+    end
+    if bone=="Chest" and upper then
+        return upper,upper.Position+upper.CFrame.UpVector*(upper.Size.Y*.15)
+    end
+    if bone=="Hip" then
+        if lower then
+            return lower,lower.Position
+        end
+        if upper then
+            return upper,upper.Position-upper.CFrame.UpVector*(upper.Size.Y*.4)
+        end
+    end
+    local part=upper or root or head
+    if part then
+        return part,part.Position
+    end
+    return nil,nil
+end
 
-    local k=input.KeyCode
+local rayParams=RaycastParams.new()
+rayParams.FilterType=Enum.RaycastFilterType.Exclude
 
-    if listening then
-        local t=listening
-        listening=nil
+function Engine.Visible(origin,model,point)
+    local filter={model}
+    if LP.Character then
+        table.insert(filter,LP.Character)
+    end
+    rayParams.FilterDescendantsInstances=filter
+    local direction=point-origin
+    for _=1,4 do
+        local result=workspace:Raycast(origin,direction,rayParams)
+        if not result then
+            return true
+        end
+        local hit=result.Instance
+        if hit and hit:IsA("BasePart") and (hit.Transparency>=.8 or not hit.CanCollide) then
+            table.insert(filter,hit)
+            rayParams.FilterDescendantsInstances=filter
+        else
+            return false
+        end
+    end
+    return false
+end
 
-        if k==Enum.KeyCode.Escape or k==Enum.KeyCode.Backspace then
-            t.SetKey(nil)
-        elseif k~=Enum.KeyCode.Unknown then
+local AimMarker=N("Frame",{
+    Size=UDim2.fromOffset(24,24),
+    AnchorPoint=Vector2.new(.5,.5),
+    BackgroundTransparency=1,
+    Visible=false,
+    ZIndex=3,
+    Parent=Gui
+})
+N("UICorner",{CornerRadius=UDim.new(1,0),Parent=AimMarker})
+N("UIStroke",{Color=C.gold,Thickness=2,Parent=AimMarker})
+local AimMarkerLabel=T(AimMarker,"AIM",UDim2.fromOffset(60,14),UDim2.new(.5,-30,1,4),10,C.gold,Enum.Font.GothamBlack)
+AimMarkerLabel.TextXAlignment=Enum.TextXAlignment.Center
+AimMarkerLabel.TextStrokeTransparency=.2
+AimMarkerLabel.TextStrokeColor3=C.black
 
-            for _,o in ipairs(Toggles) do
-                if o.Key==k then
-                    o.SetKey(nil)
+function Engine.AimActive()
+    local mode=CFG.aim.activation
+    if mode=="Always" then
+        return true
+    end
+    if mode=="Hold" then
+        return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+    end
+    if mode=="HoldAny" then
+        return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) or UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+    end
+    if mode=="Touch" then
+        return next(STATE.touches)~=nil
+    end
+    return false
+end
+
+function Engine.EvaluateAim(model,camera,center,origin,from,fov)
+    if not model.Parent or Engine.IsFriendly(model) then
+        return false
+    end
+    local hum=model:FindFirstChildOfClass("Humanoid")
+    if hum and hum.Health<=0 then
+        return false
+    end
+    local part,point=Engine.BonePoint(model,CFG.aim.bone)
+    if not part or not point then
+        return false
+    end
+    local worldDistance=(point-from).Magnitude
+    if worldDistance>CFG.aim.range then
+        return false
+    end
+    local screen,onScreen=camera:WorldToViewportPoint(point)
+    if not onScreen then
+        return false
+    end
+    local screenDistance=(Vector2.new(screen.X,screen.Y)-center).Magnitude
+    if screenDistance>fov then
+        return false
+    end
+    if CFG.aim.wall and not Engine.Visible(origin,model,point) then
+        return false
+    end
+    return true,part,point,screenDistance,worldDistance
+end
+
+function Engine.FindAimTarget(camera)
+    local center=camera.ViewportSize/2
+    local origin=camera.CFrame.Position
+    local root=Root()
+    local from=root and root.Position or origin
+    if CFG.aim.lock and STATE.aimModel and STATE.aimModel~=STATE.skipModel then
+        local ok,part,point=Engine.EvaluateAim(STATE.aimModel,camera,center,origin,from,CFG.aim.fov*1.35)
+        if ok then
+            return STATE.aimModel,part,point
+        end
+    end
+    local bestModel,bestPart,bestPoint=nil,nil,nil
+    local bestScore=math.huge
+    for _,model in ipairs(Engine.Targets()) do
+        if model~=STATE.skipModel then
+            local ok,part,point,screenDistance,worldDistance=Engine.EvaluateAim(model,camera,center,origin,from,CFG.aim.fov)
+            if ok then
+                local score=CFG.aim.priority=="Distance" and worldDistance or screenDistance
+                if score<bestScore then
+                    bestScore=score
+                    bestModel=model
+                    bestPart=part
+                    bestPoint=point
                 end
             end
+        end
+    end
+    if not bestModel and STATE.skipModel then
+        STATE.skipModel=nil
+    end
+    return bestModel,bestPart,bestPoint
+end
 
-            t.SetKey(k)
+function Engine.SwitchTarget()
+    if STATE.aimModel then
+        STATE.skipModel=STATE.aimModel
+        STATE.aimModel=nil
+        Notify("AIM ASSIST","Objetivo cambiado",C.gold)
+    else
+        STATE.skipModel=nil
+        Notify("AIM ASSIST","Sin objetivo para cambiar",C.dim)
+    end
+end
+
+function Engine.AimStep(dt)
+    local camera=workspace.CurrentCamera
+    local aim=CFG.aim
+    FovCircle.Visible=aim.enabled and aim.showFov
+    FovCircle.Size=UDim2.fromOffset(aim.fov*2,aim.fov*2)
+    if not aim.enabled or not camera then
+        STATE.aimModel=nil
+        STATE.aimPart=nil
+        AimMarker.Visible=false
+        FovStroke.Color=C.red
+        return
+    end
+    if not Engine.AimActive() then
+        if not aim.lock then
+            STATE.aimModel=nil
+        end
+        STATE.aimPart=nil
+        AimMarker.Visible=false
+        FovStroke.Color=C.red
+        return
+    end
+    local model,part,point=Engine.FindAimTarget(camera)
+    STATE.aimModel=model
+    STATE.aimPart=part
+    FovStroke.Color=model and C.gold or C.red
+    if not point then
+        AimMarker.Visible=false
+        return
+    end
+    local screen=camera:WorldToViewportPoint(point)
+    if aim.marker then
+        AimMarker.Position=UDim2.fromOffset(screen.X,screen.Y)
+        AimMarker.Visible=true
+    else
+        AimMarker.Visible=false
+    end
+    local offset=(Vector2.new(screen.X,screen.Y)-camera.ViewportSize/2).Magnitude
+    if offset<=aim.deadzone then
+        return
+    end
+    local current=camera.CFrame
+    local goal=CFrame.lookAt(current.Position,point)
+    local alpha=aim.strength>=.999 and 1 or math.clamp(1-(1-aim.strength)^(math.max(dt,1/240)*60),0,1)
+    camera.CFrame=current:Lerp(goal,alpha)
+end
+
+local Esp={entries={}}
+
+function Esp.New()
+    local e={}
+    e.box=N("Frame",{BackgroundTransparency=1,BorderSizePixel=0,Visible=false,ZIndex=3,Parent=EspLayer})
+    e.stroke=N("UIStroke",{Color=C.red,Thickness=1.5,Transparency=0,Parent=e.box})
+    e.corners={}
+    for i=1,8 do
+        e.corners[i]=N("Frame",{BackgroundColor3=C.red,BorderSizePixel=0,Visible=false,ZIndex=4,Parent=EspLayer})
+    end
+    e.name=T(EspLayer,"",UDim2.fromOffset(200,16),nil,11,C.white,Enum.Font.GothamBold)
+    e.name.AnchorPoint=Vector2.new(.5,1)
+    e.name.TextXAlignment=Enum.TextXAlignment.Center
+    e.name.TextStrokeColor3=C.black
+    e.name.TextStrokeTransparency=.15
+    e.name.Visible=false
+    e.name.ZIndex=5
+    e.dist=T(EspLayer,"",UDim2.fromOffset(200,14),nil,10,C.gray,Enum.Font.GothamBold)
+    e.dist.AnchorPoint=Vector2.new(.5,0)
+    e.dist.TextXAlignment=Enum.TextXAlignment.Center
+    e.dist.TextStrokeColor3=C.black
+    e.dist.TextStrokeTransparency=.15
+    e.dist.Visible=false
+    e.dist.ZIndex=5
+    e.hpBack=N("Frame",{BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.25,BorderSizePixel=0,Visible=false,ZIndex=4,Parent=EspLayer})
+    e.hpStroke=N("UIStroke",{Color=Color3.new(0,0,0),Thickness=1,Transparency=.3,Parent=e.hpBack})
+    e.hpFill=N("Frame",{AnchorPoint=Vector2.new(0,1),Position=UDim2.fromScale(0,1),Size=UDim2.fromScale(1,1),BackgroundColor3=C.green,BorderSizePixel=0,ZIndex=5,Parent=e.hpBack})
+    e.hpText=T(EspLayer,"",UDim2.fromOffset(40,12),nil,9,C.white,Enum.Font.GothamBold)
+    e.hpText.AnchorPoint=Vector2.new(1,.5)
+    e.hpText.TextXAlignment=Enum.TextXAlignment.Right
+    e.hpText.TextStrokeColor3=C.black
+    e.hpText.TextStrokeTransparency=.15
+    e.hpText.Visible=false
+    e.hpText.ZIndex=5
+    e.tracer=N("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=C.red,BorderSizePixel=0,Visible=false,ZIndex=2,Parent=EspLayer})
+    e.arrow=T(EspLayer,"▲",UDim2.fromOffset(24,24),nil,18,C.red,Enum.Font.GothamBlack)
+    e.arrow.AnchorPoint=Vector2.new(.5,.5)
+    e.arrow.TextXAlignment=Enum.TextXAlignment.Center
+    e.arrow.TextStrokeColor3=C.black
+    e.arrow.TextStrokeTransparency=.2
+    e.arrow.Visible=false
+    e.arrow.ZIndex=6
+    return e
+end
+
+function Esp.HideCorners(e)
+    for _,corner in ipairs(e.corners) do
+        corner.Visible=false
+    end
+end
+
+function Esp.Hide(e)
+    e.box.Visible=false
+    e.name.Visible=false
+    e.dist.Visible=false
+    e.hpBack.Visible=false
+    e.hpText.Visible=false
+    e.tracer.Visible=false
+    e.arrow.Visible=false
+    Esp.HideCorners(e)
+end
+
+function Esp.Destroy(e)
+    for _,object in ipairs({e.box,e.name,e.dist,e.hpBack,e.hpText,e.tracer,e.arrow}) do
+        if object and object.Parent then
+            object:Destroy()
+        end
+    end
+    for _,corner in ipairs(e.corners) do
+        if corner.Parent then
+            corner:Destroy()
+        end
+    end
+end
+
+function Esp.Clear()
+    for model,e in pairs(Esp.entries) do
+        Esp.Destroy(e)
+        Esp.entries[model]=nil
+    end
+end
+
+function Esp.Corners(e,left,top,width,height,thickness,color)
+    local length=math.max(math.floor(math.min(width,height)*.28),4)
+    local t=math.max(math.floor(thickness+.5),1)
+    local right=left+width
+    local bottom=top+height
+    local layout={
+        {left,top,length,t},
+        {left,top,t,length},
+        {right-length,top,length,t},
+        {right-t,top,t,length},
+        {left,bottom-t,length,t},
+        {left,bottom-length,t,length},
+        {right-length,bottom-t,length,t},
+        {right-t,bottom-length,t,length}
+    }
+    for i,data in ipairs(layout) do
+        local corner=e.corners[i]
+        corner.Position=UDim2.fromOffset(data[1],data[2])
+        corner.Size=UDim2.fromOffset(data[3],data[4])
+        corner.BackgroundColor3=color
+        corner.Visible=true
+    end
+end
+
+function Esp.Bounds(camera,model,hum,root,head)
+    local topWorld,bottomWorld
+    if head and root then
+        topWorld=head.Position+Vector3.new(0,head.Size.Y*.5+.25,0)
+        local legs=3
+        if hum and hum.RigType==Enum.HumanoidRigType.R15 then
+            legs=hum.HipHeight+root.Size.Y*.5
+        end
+        bottomWorld=root.Position-Vector3.new(0,legs,0)
+    else
+        local ok,cf,size=pcall(function()
+            return model:GetBoundingBox()
+        end)
+        if not ok or not cf then
+            return false
+        end
+        topWorld=cf.Position+Vector3.new(0,size.Y*.5,0)
+        bottomWorld=cf.Position-Vector3.new(0,size.Y*.5,0)
+    end
+    local topScreen=camera:WorldToViewportPoint(topWorld)
+    local bottomScreen=camera:WorldToViewportPoint(bottomWorld)
+    if topScreen.Z<=0 or bottomScreen.Z<=0 then
+        return false
+    end
+    local height=math.abs(bottomScreen.Y-topScreen.Y)*CFG.esp.boxScale
+    height=math.clamp(height,6,4000)
+    local width=height*.55
+    local centerX=(topScreen.X+bottomScreen.X)*.5
+    local centerY=(topScreen.Y+bottomScreen.Y)*.5
+    return true,centerX-width*.5,centerY-height*.5,width,height
+end
+
+function Esp.Step()
+    local now=os.clock()
+    local esp=CFG.esp
+    if now-STATE.espLast<1/math.max(esp.rate,1) then
+        return
+    end
+    STATE.espLast=now
+    local camera=workspace.CurrentCamera
+    local any=esp.boxes or esp.names or esp.distance or esp.health or esp.healthText or esp.tracers or esp.arrows
+    local wanted={}
+    if any and camera then
+        local targets=Engine.Targets()
+        for i=1,math.min(#targets,esp.maxTargets) do
+            wanted[targets[i]]=true
+        end
+    end
+    for model,e in pairs(Esp.entries) do
+        if not wanted[model] or not model.Parent then
+            Esp.Destroy(e)
+            Esp.entries[model]=nil
+        end
+    end
+    if not any or not camera then
+        return
+    end
+    local viewport=camera.ViewportSize
+    local origin=camera.CFrame.Position
+    local myRoot=Root()
+    local from=myRoot and myRoot.Position or origin
+    for model in pairs(wanted) do
+        local e=Esp.entries[model]
+        if not e then
+            e=Esp.New()
+            Esp.entries[model]=e
+        end
+        local hum,root,head=Engine.Parts(model)
+        local shown=false
+        if root and (not hum or hum.Health>0) and not Engine.IsFriendly(model) then
+            local distance=(root.Position-from).Magnitude
+            if distance<=esp.range and (not esp.wall or Engine.Visible(origin,model,(head or root).Position)) then
+                local fraction=hum and math.clamp(hum.Health/math.max(hum.MaxHealth,1),0,1) or 1
+                local color=(esp.hpColor and hum) and Color3.fromHSV(fraction*.33,.85,1) or C.red
+                if model==STATE.aimModel then
+                    color=C.gold
+                end
+                local _,onScreen=camera:WorldToViewportPoint(root.Position)
+                local ok,left,top,width,height=false,0,0,0,0
+                if onScreen then
+                    ok,left,top,width,height=Esp.Bounds(camera,model,hum,root,head)
+                end
+                if ok then
+                    shown=true
+                    e.arrow.Visible=false
+                    local centerX=left+width*.5
+                    if esp.boxes then
+                        if esp.boxStyle=="Corners" then
+                            e.box.Visible=false
+                            Esp.Corners(e,left,top,width,height,esp.thickness,color)
+                        else
+                            Esp.HideCorners(e)
+                            e.box.Position=UDim2.fromOffset(left,top)
+                            e.box.Size=UDim2.fromOffset(width,height)
+                            e.stroke.Color=color
+                            e.stroke.Thickness=esp.thickness
+                            e.box.Visible=true
+                        end
+                    else
+                        e.box.Visible=false
+                        Esp.HideCorners(e)
+                    end
+                    if esp.names then
+                        local player=Players:GetPlayerFromCharacter(model)
+                        e.name.Text=player and player.DisplayName or model.Name
+                        e.name.Position=UDim2.fromOffset(centerX,top-3)
+                        e.name.TextColor3=model==STATE.aimModel and C.gold or C.white
+                        e.name.Visible=true
+                    else
+                        e.name.Visible=false
+                    end
+                    if esp.distance then
+                        e.dist.Text=string.format("%d studs",math.floor(distance+.5))
+                        e.dist.Position=UDim2.fromOffset(centerX,top+height+3)
+                        e.dist.Visible=true
+                    else
+                        e.dist.Visible=false
+                    end
+                    local barWidth=math.clamp(math.floor(height*.035+.5),2,4)
+                    if esp.health then
+                        e.hpBack.Position=UDim2.fromOffset(left-barWidth-4,top)
+                        e.hpBack.Size=UDim2.fromOffset(barWidth,height)
+                        e.hpFill.Size=UDim2.fromScale(1,fraction)
+                        e.hpFill.BackgroundColor3=Color3.fromHSV(fraction*.33,.85,1)
+                        e.hpBack.Visible=true
+                    else
+                        e.hpBack.Visible=false
+                    end
+                    if esp.healthText and hum then
+                        e.hpText.Text=tostring(math.floor(hum.Health+.5))
+                        e.hpText.Position=UDim2.fromOffset(left-barWidth-7,top+height*(1-fraction))
+                        e.hpText.TextColor3=Color3.fromHSV(fraction*.33,.85,1)
+                        e.hpText.Visible=true
+                    else
+                        e.hpText.Visible=false
+                    end
+                    if esp.tracers then
+                        local startPoint
+                        local endPoint
+                        if esp.tracerOrigin=="Top" then
+                            startPoint=Vector2.new(viewport.X*.5,2)
+                            endPoint=Vector2.new(centerX,top)
+                        elseif esp.tracerOrigin=="Center" then
+                            startPoint=viewport*.5
+                            endPoint=Vector2.new(centerX,top+height*.5)
+                        else
+                            startPoint=Vector2.new(viewport.X*.5,viewport.Y-2)
+                            endPoint=Vector2.new(centerX,top+height)
+                        end
+                        local delta=endPoint-startPoint
+                        local middle=startPoint+delta*.5
+                        e.tracer.Size=UDim2.fromOffset(math.max(delta.Magnitude,1),math.max(esp.thickness,1))
+                        e.tracer.Position=UDim2.fromOffset(middle.X,middle.Y)
+                        e.tracer.Rotation=math.deg(math.atan2(delta.Y,delta.X))
+                        e.tracer.BackgroundColor3=color
+                        e.tracer.Visible=true
+                    else
+                        e.tracer.Visible=false
+                    end
+                elseif esp.arrows then
+                    Esp.Hide(e)
+                    local relative=camera.CFrame:PointToObjectSpace(root.Position)
+                    local direction=Vector2.new(relative.X,-relative.Y)
+                    if direction.Magnitude<.001 then
+                        direction=Vector2.new(0,1)
+                    end
+                    direction=direction.Unit
+                    local radius=math.min(viewport.X,viewport.Y)*.38
+                    local center=viewport*.5
+                    e.arrow.Position=UDim2.fromOffset(center.X+direction.X*radius,center.Y+direction.Y*radius)
+                    e.arrow.Rotation=math.deg(math.atan2(direction.Y,direction.X))+90
+                    e.arrow.TextColor3=color
+                    e.arrow.Visible=true
+                    shown=true
+                end
+            end
+        end
+        if not shown then
+            Esp.Hide(e)
+        end
+    end
+end
+
+local Highlights={store={}}
+
+function Highlights.Sync()
+    local esp=CFG.esp
+    local enabled=esp.xray or esp.outline
+    local wanted={}
+    if enabled then
+        local count=0
+        for _,model in ipairs(Engine.Targets()) do
+            if count>=30 then
+                break
+            end
+            if not Engine.IsFriendly(model) then
+                wanted[model]=true
+                count=count+1
+            end
+        end
+    end
+    for model,highlight in pairs(Highlights.store) do
+        if not wanted[model] or not highlight.Parent then
+            pcall(function()
+                highlight:Destroy()
+            end)
+            Highlights.store[model]=nil
+        end
+    end
+    for model in pairs(wanted) do
+        local highlight=Highlights.store[model]
+        if not highlight then
+            highlight=N("Highlight",{
+                Name="STIRLAX_Highlight",
+                Adornee=model,
+                DepthMode=Enum.HighlightDepthMode.AlwaysOnTop,
+                Parent=model
+            })
+            Highlights.store[model]=highlight
+        end
+        if esp.xray then
+            highlight.FillColor=C.red
+            highlight.OutlineColor=C.white
+            highlight.FillTransparency=esp.xrayFill
+            highlight.OutlineTransparency=0
         else
-            t.SetKey(t.Key)
+            highlight.FillColor=C.red
+            highlight.OutlineColor=C.red
+            highlight.FillTransparency=1
+            highlight.OutlineTransparency=0
         end
+    end
+end
 
+function Highlights.Clear()
+    for model,highlight in pairs(Highlights.store) do
+        pcall(function()
+            highlight:Destroy()
+        end)
+        Highlights.store[model]=nil
+    end
+end
+
+local World={active=false,fadeStore={},fadeConn=nil,atmosphere={}}
+
+function World.Apply()
+    local w=CFG.world
+    local any=w.fullbright or w.noFog or w.noShadows or w.hour
+    if not any and not World.active then
         return
     end
+    World.active=any
+    Lighting.Brightness=w.fullbright and 3 or ORIGINAL.brightness
+    Lighting.Ambient=w.fullbright and Color3.fromRGB(180,180,180) or ORIGINAL.ambient
+    Lighting.OutdoorAmbient=w.fullbright and Color3.fromRGB(180,180,180) or ORIGINAL.outdoor
+    Lighting.FogEnd=(w.fullbright or w.noFog) and 1000000 or ORIGINAL.fogEnd
+    Lighting.FogStart=w.noFog and 999999 or ORIGINAL.fogStart
+    if w.noShadows then
+        Lighting.GlobalShadows=false
+    else
+        Lighting.GlobalShadows=ORIGINAL.shadows
+    end
+    if w.hour then
+        Lighting.ClockTime=w.hourValue
+    elseif w.fullbright then
+        Lighting.ClockTime=14
+    else
+        Lighting.ClockTime=ORIGINAL.clockTime
+    end
+    for _,child in ipairs(Lighting:GetChildren()) do
+        if child:IsA("Atmosphere") then
+            if w.noFog then
+                if World.atmosphere[child]==nil then
+                    World.atmosphere[child]=child.Density
+                end
+                child.Density=0
+            elseif World.atmosphere[child]~=nil then
+                child.Density=World.atmosphere[child]
+                World.atmosphere[child]=nil
+            end
+        end
+    end
+end
 
-    if gp then
+function World.Restore()
+    local w=CFG.world
+    w.fullbright=false
+    w.noFog=false
+    w.noShadows=false
+    w.hour=false
+    World.active=true
+    pcall(World.Apply)
+    World.active=false
+end
+
+function World.IsCharacterPart(object)
+    local model=object:FindFirstAncestorOfClass("Model")
+    while model do
+        if Players:GetPlayerFromCharacter(model) then
+            return true
+        end
+        model=model:FindFirstAncestorOfClass("Model")
+    end
+    return false
+end
+
+function World.IsTargetPart(object)
+    local folder=workspace:FindFirstChild("Targets")
+    if folder and object:IsDescendantOf(folder) then
+        return true
+    end
+    for _,model in ipairs(Engine.Targets()) do
+        if object:IsDescendantOf(model) then
+            return true
+        end
+    end
+    return false
+end
+
+function World.Excluded(object)
+    local mode=CFG.world.fadeExclude
+    if mode=="None" then
+        return false
+    end
+    if mode=="Characters" then
+        return World.IsCharacterPart(object)
+    end
+    if mode=="Targets" then
+        return World.IsTargetPart(object)
+    end
+    return World.IsCharacterPart(object) or World.IsTargetPart(object)
+end
+
+function World.FadePart(object)
+    if object:IsA("BasePart") and not World.Excluded(object) then
+        if World.fadeStore[object]==nil then
+            World.fadeStore[object]=object.LocalTransparencyModifier
+        end
+        object.LocalTransparencyModifier=CFG.world.fadeAmount
+    end
+end
+
+function World.SetFade(on)
+    if World.fadeConn then
+        pcall(function()
+            World.fadeConn:Disconnect()
+        end)
+        World.fadeConn=nil
+    end
+    for object,value in pairs(World.fadeStore) do
+        if object.Parent then
+            pcall(function()
+                object.LocalTransparencyModifier=value
+            end)
+        end
+    end
+    table.clear(World.fadeStore)
+    if on then
+        for _,object in ipairs(workspace:GetDescendants()) do
+            pcall(World.FadePart,object)
+        end
+        World.fadeConn=workspace.DescendantAdded:Connect(function(object)
+            pcall(World.FadePart,object)
+        end)
+    end
+end
+
+function World.CameraStep()
+    local camera=workspace.CurrentCamera
+    if not camera then
         return
     end
-
-    if UI.menuKey and k==UI.menuKey then
-        SetMenuOpen(not menuOpen)
-        return
+    if CFG.world.camFov then
+        STATE.camFovActive=true
+        camera.FieldOfView=CFG.world.camFovValue
+    elseif STATE.camFovActive then
+        STATE.camFovActive=false
+        camera.FieldOfView=ORIGINAL.fov
     end
+end
 
-    for _,o in ipairs(Toggles) do
-        if o.Key==k then
-            o.Trigger()
-        end
-    end
-end))
-
-
-View.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1
-        or input.UserInputType==Enum.UserInputType.Touch then
-
-        drag=true
-        last=input.Position
-    end
-end)
-
-View.InputEnded:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1
-        or input.UserInputType==Enum.UserInputType.Touch then
-
-        drag=false
-        last=nil
-    end
-end)
-
-View.InputChanged:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseWheel then
-        distance=math.clamp(
-            distance-input.Position.Z*.7,
-            4.5,
-            12
-        )
-
-        Cam()
-    end
-end)
-
-Track(UIS.InputChanged:Connect(function(input)
-    if drag
-        and last
-        and (
-            input.UserInputType==Enum.UserInputType.MouseMovement
-            or input.UserInputType==Enum.UserInputType.Touch
-        ) then
-
-        local delta=input.Position-last
-
-        last=input.Position
-        yaw=yaw+delta.X*.012
-        pitch=math.clamp(
-            pitch+delta.Y*.006,
-            -.75,
-            .75
-        )
-
-        if Model then
-            Model:PivotTo(
-                CFrame.new(0,BaseY,0)
-                * CFrame.Angles(pitch,yaw,0)
-            )
-
-            Cam()
-        end
-    end
-end))
-
-Track(Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        if player==Selected and player~=LP then
-            task.wait(.5)
-            Show(player)
-        end
-    end)
-
-    Update()
-end))
-
-Track(Players.PlayerRemoving:Connect(function(player)
-    if player==Selected then
-        Show(LP)
-    end
-
-    Update()
-end))
-
-Track(LP.CharacterAdded:Connect(function()
-    table.clear(ownStore)
-    table.clear(ncStore)
-    origSpeed=nil
-    origJump=nil
-    flyActive=false
-
-    task.wait(.5)
-
-    ApplyOwn()
-
-    if Selected==LP then
-        Show(LP)
-    end
-end))
-
-
-Gui.Destroying:Connect(function()
-    menuOpen=false
-    menuBusy=false
-    for _,c in ipairs(conns) do
-        SafeDisconnect(c)
-    end
-
+function World.ApplyZoom()
     pcall(function()
-        RunService:UnbindFromRenderStep("09Step")
-        RunService:UnbindFromRenderStep("09EspStep")
+        LP.CameraMaxZoomDistance=CFG.world.zoom and 10000 or ORIGINAL.zoom
     end)
+end
 
-    aimOn=false
-    SetMarker(nil)
+local Move={origSpeed=nil,origJump=nil,origUseJump=nil,noclipStore={}}
 
-    for _,store in ipairs({xrayStore,hlStore}) do
-        for _,h in pairs(store) do
-            h:Destroy()
+function Move.Step()
+    local hum=Hum()
+    if not hum then
+        return
+    end
+    local m=CFG.move
+    if m.speed then
+        if Move.origSpeed==nil then
+            Move.origSpeed=hum.WalkSpeed
+        end
+        if hum.WalkSpeed~=m.speedValue then
+            hum.WalkSpeed=m.speedValue
+        end
+    elseif Move.origSpeed~=nil then
+        hum.WalkSpeed=Move.origSpeed
+        Move.origSpeed=nil
+    end
+    if m.jump then
+        if Move.origJump==nil then
+            Move.origJump=hum.JumpPower
+            Move.origUseJump=hum.UseJumpPower
+        end
+        hum.UseJumpPower=true
+        if hum.JumpPower~=m.jumpValue then
+            hum.JumpPower=m.jumpValue
+        end
+    elseif Move.origJump~=nil then
+        hum.UseJumpPower=Move.origUseJump
+        hum.JumpPower=Move.origJump
+        Move.origJump=nil
+    end
+end
+
+function Move.ApplyGravity()
+    workspace.Gravity=CFG.move.gravity and CFG.move.gravityValue or ORIGINAL.gravity
+end
+
+function Move.Noclip()
+    local character=LP.Character
+    if CFG.move.noclip and character then
+        for _,part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                Move.noclipStore[part]=true
+                part.CanCollide=false
+            end
+        end
+    elseif next(Move.noclipStore) then
+        for part in pairs(Move.noclipStore) do
+            if part.Parent then
+                part.CanCollide=true
+            end
+        end
+        table.clear(Move.noclipStore)
+    end
+end
+
+function Move.NearestTarget()
+    local root=Root()
+    if not root then
+        Notify("TELEPORT","Personaje no disponible",C.dim)
+        return
+    end
+    local bestPart=nil
+    local bestDistance=math.huge
+    for _,model in ipairs(Engine.Targets()) do
+        local _,part=Engine.Parts(model)
+        if part then
+            local distance=(part.Position-root.Position).Magnitude
+            if distance<bestDistance then
+                bestDistance=distance
+                bestPart=part
+            end
         end
     end
-
-    full=false
-    noFog=false
-    noShadows=false
-    hourOn=false
-    ApplyLighting()
-
-    gravityOn=false
-    ApplyGravity()
-
-    zoomOn=false
-    ApplyZoom()
-
-    local cam=workspace.CurrentCamera
-
-    if cam and camFovActive then
-        cam.FieldOfView=origFov
+    if bestPart then
+        root.CFrame=CFrame.new(bestPart.Position+Vector3.new(0,3,6),bestPart.Position)
+        Notify("TELEPORT","Objetivo a "..math.floor(bestDistance).." studs",C.red)
+    else
+        Notify("TELEPORT","No hay objetivos autorizados",C.dim)
     end
+end
 
-    speedOn=false
-    ApplySpeed()
+function Move.ClickTeleport()
+    local camera=workspace.CurrentCamera
+    local root=Root()
+    if not camera or not root then
+        return
+    end
+    local mouse=UIS:GetMouseLocation()
+    local ray=camera:ViewportPointToRay(mouse.X,mouse.Y)
+    local params=RaycastParams.new()
+    params.FilterType=Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances={LP.Character}
+    local result=workspace:Raycast(ray.Origin,ray.Direction*2000,params)
+    if result then
+        root.CFrame=CFrame.new(result.Position+Vector3.new(0,3,0))*(root.CFrame-root.CFrame.Position)
+    end
+end
 
-    jumpOn=false
-    ApplyJump()
+function Move.ResetCharacter()
+    local hum=Hum()
+    if hum then
+        hum.Health=0
+    end
+end
 
-    flyOn=false
-    DoFly()
-
-    for part in pairs(ncStore) do
+function Move.Restore()
+    local hum=Hum()
+    if hum then
+        if Move.origSpeed~=nil then
+            hum.WalkSpeed=Move.origSpeed
+        end
+        if Move.origJump~=nil then
+            hum.UseJumpPower=Move.origUseJump
+            hum.JumpPower=Move.origJump
+        end
+    end
+    Move.origSpeed=nil
+    Move.origJump=nil
+    for part in pairs(Move.noclipStore) do
         if part.Parent then
             part.CanCollide=true
         end
     end
+    table.clear(Move.noclipStore)
+    workspace.Gravity=ORIGINAL.gravity
+end
 
-    Restore(ownStore)
-    StirlaxCleanup()
+local Fly={active=false,velocity=Vector3.zero}
+
+function Fly.Stop()
+    local hum=Fly.hum
+    local root=Fly.root
+    for _,key in ipairs({"velocityObject","alignObject","attachment"}) do
+        local object=Fly[key]
+        if object then
+            pcall(function()
+                object:Destroy()
+            end)
+        end
+        Fly[key]=nil
+    end
+    if Fly.active and hum and hum.Parent then
+        pcall(function()
+            hum.PlatformStand=false
+            hum.AutoRotate=true
+            if hum.Health>0 then
+                hum:ChangeState(Enum.HumanoidStateType.Freefall)
+            end
+        end)
+    end
+    if Fly.active and root and root.Parent then
+        pcall(function()
+            root.AssemblyLinearVelocity=Vector3.zero
+        end)
+    end
+    Fly.active=false
+    Fly.hum=nil
+    Fly.root=nil
+    Fly.velocity=Vector3.zero
+end
+
+function Fly.Start()
+    local root=Root()
+    local hum=Hum()
+    if not root or not hum or hum.Health<=0 then
+        return false
+    end
+    Fly.Stop()
+    Fly.root=root
+    Fly.hum=hum
+    Fly.attachment=N("Attachment",{Name="STIRLAX_FlyAttachment",Parent=root})
+    Fly.velocityObject=N("LinearVelocity",{
+        Name="STIRLAX_FlyVelocity",
+        Attachment0=Fly.attachment,
+        RelativeTo=Enum.ActuatorRelativeTo.World,
+        VelocityConstraintMode=Enum.VelocityConstraintMode.Vector,
+        MaxForce=1e9,
+        VectorVelocity=Vector3.zero,
+        Parent=root
+    })
+    Fly.alignObject=N("AlignOrientation",{
+        Name="STIRLAX_FlyAlign",
+        Attachment0=Fly.attachment,
+        Mode=Enum.OrientationAlignmentMode.OneAttachment,
+        RigidityEnabled=false,
+        Responsiveness=40,
+        MaxTorque=1e9,
+        CFrame=root.CFrame,
+        Parent=root
+    })
+    hum.PlatformStand=true
+    hum.AutoRotate=false
+    Fly.active=true
+    return true
+end
+
+local function KeyDown(key)
+    if UIS:GetFocusedTextBox() then
+        return false
+    end
+    return UIS:IsKeyDown(key)
+end
+
+function Fly.Step(dt)
+    if not CFG.move.fly then
+        if Fly.active then
+            Fly.Stop()
+        end
+        return
+    end
+    local root=Root()
+    local hum=Hum()
+    if not root or not hum or hum.Health<=0 then
+        if Fly.active then
+            Fly.Stop()
+        end
+        return
+    end
+    if not Fly.active or Fly.root~=root or not Fly.velocityObject or not Fly.velocityObject.Parent then
+        if not Fly.Start() then
+            return
+        end
+    end
+    local camera=workspace.CurrentCamera
+    if not camera then
+        return
+    end
+    local look=camera.CFrame.LookVector
+    local right=camera.CFrame.RightVector
+    local flatLook=Vector3.new(look.X,0,look.Z)
+    local flatRight=Vector3.new(right.X,0,right.Z)
+    flatLook=flatLook.Magnitude>.001 and flatLook.Unit or Vector3.new(0,0,-1)
+    flatRight=flatRight.Magnitude>.001 and flatRight.Unit or Vector3.new(1,0,0)
+    local forward,side=0,0
+    local moveDirection=hum.MoveDirection
+    if moveDirection.Magnitude>.05 then
+        forward=moveDirection:Dot(flatLook)
+        side=moveDirection:Dot(flatRight)
+    else
+        if KeyDown(Enum.KeyCode.W) or KeyDown(Enum.KeyCode.Up) then forward=forward+1 end
+        if KeyDown(Enum.KeyCode.S) or KeyDown(Enum.KeyCode.Down) then forward=forward-1 end
+        if KeyDown(Enum.KeyCode.D) or KeyDown(Enum.KeyCode.Right) then side=side+1 end
+        if KeyDown(Enum.KeyCode.A) or KeyDown(Enum.KeyCode.Left) then side=side-1 end
+    end
+    local vertical=0
+    if KeyDown(Enum.KeyCode.Space) or STATE.flyUp then vertical=vertical+1 end
+    if KeyDown(Enum.KeyCode.LeftShift) or KeyDown(Enum.KeyCode.LeftControl) or STATE.flyDown then vertical=vertical-1 end
+    local direction=look*forward+flatRight*side
+    local goal=Vector3.zero
+    if direction.Magnitude>.001 then
+        goal=direction.Unit*math.min(direction.Magnitude,1)*CFG.move.flySpeed
+    end
+    goal=goal+Vector3.new(0,vertical*CFG.move.flyVertical,0)
+    local alpha=math.clamp(1-(1-CFG.move.flyAccel)^(math.max(dt,1/240)*60),.02,1)
+    Fly.velocity=Fly.velocity:Lerp(goal,alpha)
+    Fly.velocityObject.VectorVelocity=Fly.velocity
+    if Fly.alignObject then
+        Fly.alignObject.CFrame=CFrame.lookAt(root.Position,root.Position+flatLook)
+    end
+end
+
+local FlyPad=N("Frame",{
+    Name="FlyPad",
+    Size=UDim2.fromOffset(84,150),
+    Position=UDim2.new(1,-100,.5,-110),
+    BackgroundTransparency=1,
+    Visible=false,
+    ZIndex=35,
+    Parent=Gui
+})
+local function PadButton(text,y,flag)
+    local button=B(FlyPad,text,UDim2.fromOffset(84,68),UDim2.fromOffset(0,y))
+    button.BackgroundColor3=C.glass
+    button.BackgroundTransparency=.15
+    button.TextColor3=C.white
+    button.TextSize=13
+    button.ZIndex=36
+    S(button,C.red,1.5)
+    Track(button.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+            STATE[flag]=true
+            button.BackgroundColor3=C.redDeep
+        end
+    end))
+    Track(button.InputEnded:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+            STATE[flag]=false
+            button.BackgroundColor3=C.glass
+        end
+    end))
+    return button
+end
+PadButton("SUBIR",0,"flyUp")
+PadButton("BAJAR",80,"flyDown")
+
+function Fly.UpdatePad()
+    FlyPad.Visible=CFG.move.fly and CFG.move.flyPad
+    if not FlyPad.Visible then
+        STATE.flyUp=false
+        STATE.flyDown=false
+    end
+end
+
+local Extra={}
+
+function Extra.Spin(dt)
+    if not CFG.extra.spin or CFG.move.fly then
+        return
+    end
+    local root=Root()
+    if root then
+        root.CFrame=root.CFrame*CFrame.Angles(0,math.rad(CFG.extra.spinSpeed)*dt,0)
+    end
+end
+
+function Extra.Tool()
+    if not CFG.extra.tool then
+        return
+    end
+    local character=LP.Character
+    local tool=character and character:FindFirstChildOfClass("Tool")
+    if not tool then
+        return
+    end
+    local allowed=CFG.extra.toolFilter=="Any"
+        or tool:GetAttribute("STIRLAXToolAssist")==true
+        or tool:GetAttribute("FXRapidFire")==true
+    if not allowed then
+        return
+    end
+    if not UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+        return
+    end
+    local now=os.clock()
+    if now-STATE.toolLast>=CFG.extra.toolCooldown then
+        STATE.toolLast=now
+        pcall(function()
+            tool:Activate()
+        end)
+    end
+end
+
+function Extra.Overlay()
+    local parts={}
+    if CFG.ui.fpsMonitor then
+        table.insert(parts,"FPS "..tostring(STATE.fps))
+    end
+    if CFG.ui.targetCounter then
+        table.insert(parts,"OBJETIVOS "..tostring(STATE.targetCount))
+    end
+    if #parts>0 then
+        Overlay.Text=table.concat(parts,"   |   ")
+        Overlay.Visible=true
+    else
+        Overlay.Visible=false
+    end
+end
+
+local UIX={}
+
+if STATE.mobile and CFG.aim.activation=="Hold" then
+    CFG.aim.activation="Touch"
+end
+CFG.move.flyPad=STATE.mobile
+
+do
+    STATE.buildPrefix="AIM"
+    local content=Content(Pages.AIM)
+    local activation=Section(content,"ACTIVACION")
+    MakeToggle(activation,"AIM ASSIST",CFG.aim.enabled,function(v)
+        CFG.aim.enabled=v
+        if not v then
+            STATE.aimModel=nil
+            STATE.skipModel=nil
+        end
+    end)
+    MakeSelector(activation,"MODO DE ACTIVACION",{
+        {"MANTENER CLIC DER","Hold"},
+        {"CLIC IZQ O DER","HoldAny"},
+        {"SIEMPRE ACTIVO","Always"},
+        {"TOQUE (MOVIL)","Touch"}
+    },CFG.aim.activation,function(v)
+        CFG.aim.activation=v
+    end)
+    MakeToggle(activation,"BLOQUEAR OBJETIVO",CFG.aim.lock,function(v)
+        CFG.aim.lock=v
+        if not v then
+            STATE.aimModel=nil
+        end
+    end)
+    UIX.switchTarget=MakeButton(activation,"CAMBIAR OBJETIVO","CAMBIAR",Engine.SwitchTarget)
+    UIX.switchTarget.DefaultKey=Enum.KeyCode.Q
+    UIX.switchTarget.SetKey(Enum.KeyCode.Q)
+
+    local point=Section(content,"PUNTO DE APUNTE")
+    MakeSelector(point,"PARTE DEL CUERPO",{
+        {"CABEZA","Head"},
+        {"CUELLO","Neck"},
+        {"PECHO","Chest"},
+        {"CADERA","Hip"}
+    },CFG.aim.bone,function(v)
+        CFG.aim.bone=v
+    end)
+    MakeSelector(point,"PRIORIDAD DE OBJETIVO",{
+        {"CERCA DE MIRA","Center"},
+        {"MAS CERCANO","Distance"}
+    },CFG.aim.priority,function(v)
+        CFG.aim.priority=v
+    end)
+
+    local precision=Section(content,"PRECISION Y RESPUESTA")
+    MakeSlider(precision,"RADIO DEL FOV",40,500,CFG.aim.fov,0," px",function(v)
+        CFG.aim.fov=v
+    end)
+    MakeSlider(precision,"FUERZA (1.00 = INSTANTANEO)",.05,1,CFG.aim.strength,2,"",function(v)
+        CFG.aim.strength=v
+    end)
+    MakeSlider(precision,"DISTANCIA MAXIMA",50,2000,CFG.aim.range,0," st",function(v)
+        CFG.aim.range=v
+    end)
+    MakeSlider(precision,"ZONA MUERTA",0,30,CFG.aim.deadzone,0," px",function(v)
+        CFG.aim.deadzone=v
+    end)
+
+    local visual=Section(content,"VISUAL Y FILTROS")
+    MakeToggle(visual,"MOSTRAR CIRCULO FOV",CFG.aim.showFov,function(v)
+        CFG.aim.showFov=v
+    end)
+    MakeToggle(visual,"MARCADOR DE OBJETIVO",CFG.aim.marker,function(v)
+        CFG.aim.marker=v
+    end)
+    MakeToggle(visual,"COMPROBAR PAREDES",CFG.aim.wall,function(v)
+        CFG.aim.wall=v
+    end)
+end
+
+do
+    STATE.buildPrefix="ESP"
+    local content=Content(Pages.ESP)
+    local elements=Section(content,"ELEMENTOS  (ACTIVA CADA UNO POR SEPARADO)")
+    MakeToggle(elements,"LINEAS (TRACERS)",CFG.esp.tracers,function(v)
+        CFG.esp.tracers=v
+    end)
+    MakeToggle(elements,"CAJAS",CFG.esp.boxes,function(v)
+        CFG.esp.boxes=v
+    end)
+    MakeToggle(elements,"BARRA DE VIDA",CFG.esp.health,function(v)
+        CFG.esp.health=v
+    end)
+    MakeToggle(elements,"VIDA EN NUMERO",CFG.esp.healthText,function(v)
+        CFG.esp.healthText=v
+    end)
+    MakeToggle(elements,"NOMBRES",CFG.esp.names,function(v)
+        CFG.esp.names=v
+    end)
+    MakeToggle(elements,"DISTANCIA",CFG.esp.distance,function(v)
+        CFG.esp.distance=v
+    end)
+    MakeToggle(elements,"FLECHAS FUERA DE PANTALLA",CFG.esp.arrows,function(v)
+        CFG.esp.arrows=v
+    end)
+
+    local glow=Section(content,"RESALTADO 3D")
+    MakeToggle(glow,"X-RAY (RELLENO)",CFG.esp.xray,function(v)
+        CFG.esp.xray=v
+        Highlights.Sync()
+    end)
+    MakeToggle(glow,"CONTORNO",CFG.esp.outline,function(v)
+        CFG.esp.outline=v
+        Highlights.Sync()
+    end)
+    MakeSlider(glow,"OPACIDAD X-RAY",0,.95,CFG.esp.xrayFill,2,"",function(v)
+        CFG.esp.xrayFill=v
+        Highlights.Sync()
+    end)
+
+    local style=Section(content,"ESTILO")
+    MakeSelector(style,"ESTILO DE CAJA",{
+        {"ESQUINAS","Corners"},
+        {"COMPLETA","Full"}
+    },CFG.esp.boxStyle,function(v)
+        CFG.esp.boxStyle=v
+    end)
+    MakeSelector(style,"ORIGEN DE LINEAS",{
+        {"ABAJO","Bottom"},
+        {"CENTRO","Center"},
+        {"ARRIBA","Top"}
+    },CFG.esp.tracerOrigin,function(v)
+        CFG.esp.tracerOrigin=v
+    end)
+    MakeSlider(style,"GROSOR",1,4,CFG.esp.thickness,1," px",function(v)
+        CFG.esp.thickness=v
+    end)
+    MakeSlider(style,"ESCALA DE CAJA",.7,1.5,CFG.esp.boxScale,2,"x",function(v)
+        CFG.esp.boxScale=v
+    end)
+    MakeToggle(style,"COLOR SEGUN VIDA",CFG.esp.hpColor,function(v)
+        CFG.esp.hpColor=v
+    end)
+
+    local filters=Section(content,"FILTROS Y RENDIMIENTO")
+    MakeSlider(filters,"DISTANCIA MAXIMA",100,5000,CFG.esp.range,0," st",function(v)
+        CFG.esp.range=v
+    end)
+    MakeToggle(filters,"SOLO VISIBLES (PAREDES)",CFG.esp.wall,function(v)
+        CFG.esp.wall=v
+    end)
+    UIX.espRate=MakeSlider(filters,"ACTUALIZACIONES POR SEG",10,120,CFG.esp.rate,0," /s",function(v)
+        CFG.esp.rate=v
+    end)
+    UIX.espMax=MakeSlider(filters,"MAXIMO DE OBJETIVOS",5,100,CFG.esp.maxTargets,0,"",function(v)
+        CFG.esp.maxTargets=v
+    end)
+end
+
+do
+    STATE.buildPrefix="MOVE"
+    local content=Content(Pages.MOVE)
+    local walk=Section(content,"VELOCIDAD Y SALTO")
+    MakeToggle(walk,"VELOCIDAD",CFG.move.speed,function(v)
+        CFG.move.speed=v
+    end)
+    MakeSlider(walk,"VALOR DE VELOCIDAD",16,250,CFG.move.speedValue,0,"",function(v)
+        CFG.move.speedValue=v
+    end)
+    MakeToggle(walk,"SALTO ALTO",CFG.move.jump,function(v)
+        CFG.move.jump=v
+    end)
+    MakeSlider(walk,"POTENCIA DE SALTO",50,400,CFG.move.jumpValue,0,"",function(v)
+        CFG.move.jumpValue=v
+    end)
+    MakeToggle(walk,"SALTO INFINITO",CFG.move.infJump,function(v)
+        CFG.move.infJump=v
+    end)
+
+    local fly=Section(content,"VUELO")
+    MakeToggle(fly,"FLY",CFG.move.fly,function(v)
+        CFG.move.fly=v
+        if not v then
+            Fly.Stop()
+        end
+        Fly.UpdatePad()
+    end)
+    MakeSlider(fly,"VELOCIDAD DE VUELO",10,400,CFG.move.flySpeed,0,"",function(v)
+        CFG.move.flySpeed=v
+    end)
+    MakeSlider(fly,"VELOCIDAD VERTICAL",10,300,CFG.move.flyVertical,0,"",function(v)
+        CFG.move.flyVertical=v
+    end)
+    MakeSlider(fly,"SUAVIDAD (1.00 = DIRECTO)",.05,1,CFG.move.flyAccel,2,"",function(v)
+        CFG.move.flyAccel=v
+    end)
+    MakeToggle(fly,"BOTONES SUBIR / BAJAR",CFG.move.flyPad,function(v)
+        CFG.move.flyPad=v
+        Fly.UpdatePad()
+    end)
+
+    local physics=Section(content,"FISICA")
+    MakeToggle(physics,"NOCLIP",CFG.move.noclip,function(v)
+        CFG.move.noclip=v
+        if not v then
+            Move.Noclip()
+        end
+    end)
+    MakeToggle(physics,"GRAVEDAD PERSONALIZADA",CFG.move.gravity,function(v)
+        CFG.move.gravity=v
+        Move.ApplyGravity()
+    end)
+    MakeSlider(physics,"GRAVEDAD",0,400,CFG.move.gravityValue,0,"",function(v)
+        CFG.move.gravityValue=v
+        if CFG.move.gravity then
+            Move.ApplyGravity()
+        end
+    end)
+
+    local teleport=Section(content,"TELEPORT")
+    MakeToggle(teleport,"CTRL + CLIC TELEPORT",CFG.move.clickTp,function(v)
+        CFG.move.clickTp=v
+    end)
+    MakeButton(teleport,"IR AL OBJETIVO MAS CERCANO","IR",Move.NearestTarget)
+    MakeButton(teleport,"REINICIAR PERSONAJE","REINICIAR",Move.ResetCharacter)
+end
+
+do
+    STATE.buildPrefix="WORLD"
+    local content=Content(Pages.WORLD)
+    local light=Section(content,"ILUMINACION")
+    MakeToggle(light,"FULLBRIGHT",CFG.world.fullbright,function(v)
+        CFG.world.fullbright=v
+        World.Apply()
+    end)
+    MakeToggle(light,"SIN NIEBLA",CFG.world.noFog,function(v)
+        CFG.world.noFog=v
+        World.Apply()
+    end)
+    MakeToggle(light,"SIN SOMBRAS",CFG.world.noShadows,function(v)
+        CFG.world.noShadows=v
+        World.Apply()
+    end)
+    MakeToggle(light,"HORA FIJA",CFG.world.hour,function(v)
+        CFG.world.hour=v
+        World.Apply()
+    end)
+    MakeSlider(light,"HORA DEL DIA",0,24,CFG.world.hourValue,1," h",function(v)
+        CFG.world.hourValue=v
+        if CFG.world.hour then
+            World.Apply()
+        end
+    end)
+
+    local camera=Section(content,"CAMARA")
+    MakeToggle(camera,"FOV DE CAMARA",CFG.world.camFov,function(v)
+        CFG.world.camFov=v
+        World.CameraStep()
+    end)
+    MakeSlider(camera,"VALOR DEL FOV",40,120,CFG.world.camFovValue,0,"",function(v)
+        CFG.world.camFovValue=v
+    end)
+    MakeToggle(camera,"ZOOM MAXIMO",CFG.world.zoom,function(v)
+        CFG.world.zoom=v
+        World.ApplyZoom()
+    end)
+
+    local fade=Section(content,"TRANSPARENCIA DEL MAPA")
+    MakeToggle(fade,"WORLD FADE",CFG.world.fade,function(v)
+        CFG.world.fade=v
+        World.SetFade(v)
+    end)
+    MakeSlider(fade,"INTENSIDAD",.1,.95,CFG.world.fadeAmount,2,"",function(v)
+        CFG.world.fadeAmount=v
+        if CFG.world.fade then
+            for object in pairs(World.fadeStore) do
+                if object.Parent then
+                    object.LocalTransparencyModifier=v
+                end
+            end
+        end
+    end)
+    MakeSelector(fade,"EXCLUIR DEL FADE",{
+        {"PERSONAJES+OBJ.","Both"},
+        {"PERSONAJES","Characters"},
+        {"OBJETIVOS","Targets"},
+        {"NINGUNO","None"}
+    },CFG.world.fadeExclude,function(v)
+        CFG.world.fadeExclude=v
+        if CFG.world.fade then
+            World.SetFade(true)
+        end
+    end)
+end
+
+local skinCards={}
+
+local function SelectSkin(key)
+    skin=key
+    for cardKey,data in pairs(skinCards) do
+        local selected=cardKey==key
+        data.ring.Visible=selected
+        data.label.TextColor3=selected and C.gold or C.white
+    end
+    ApplySkin()
+end
+
+do
+    STATE.buildPrefix="SKINS"
+    local content=Content(Pages.SKINS)
+    local apply=Section(content,"APLICACION")
+    MakeToggle(apply,"APLICAR SKIN A MI PERSONAJE",ownSkinOn,function(v)
+        ownSkinOn=v
+        ApplyOwn()
+    end)
+    MakeButton(apply,"QUITAR SKIN (NORMAL)","NORMAL",function()
+        SelectSkin("normal")
+        Notify("SKINS","Skin normal restaurada",C.red)
+    end)
+    local catalog=Section(content,"CATALOGO DE SKINS")
+    for _,entry in ipairs(SKIN_LIST) do
+        local key,label=entry[1],entry[2]
+        local card=Card(catalog)
+        local swatch=N("Frame",{
+            Size=UDim2.fromOffset(28,28),
+            Position=UDim2.new(0,14,.5,-14),
+            BackgroundColor3=AMONG[key] or (key=="neon" and NEON_COLOR) or (key=="freefire" and FF_ORANGE) or C.gray,
+            BorderSizePixel=0,
+            ZIndex=6,
+            Parent=card
+        })
+        R(swatch,14)
+        S(swatch,C.white,1,false)
+        local text=T(card,label,UDim2.new(1,-64,1,0),UDim2.fromOffset(54,0),12,C.white,Enum.Font.GothamBold)
+        text.ZIndex=6
+        local ring=N("Frame",{
+            Size=UDim2.new(1,-4,1,-4),
+            Position=UDim2.fromOffset(2,2),
+            BackgroundTransparency=1,
+            Visible=false,
+            ZIndex=6,
+            Parent=card
+        })
+        R(ring,11)
+        N("UIStroke",{Color=C.gold,Thickness=2,Parent=ring})
+        local hit=N("TextButton",{
+            Text="",
+            AutoButtonColor=false,
+            BackgroundTransparency=1,
+            Size=UDim2.fromScale(1,1),
+            ZIndex=7,
+            Parent=card
+        })
+        Track(hit.Activated:Connect(function()
+            SelectSkin(key)
+            Notify("SKINS",label,C.red)
+        end))
+        skinCards[key]={ring=ring,label=text}
+    end
+end
+
+do
+    STATE.buildPrefix="EXTRAS"
+    local content=Content(Pages.EXTRAS)
+    local character=Section(content,"PERSONAJE")
+    MakeToggle(character,"GIRAR PERSONAJE",CFG.extra.spin,function(v)
+        CFG.extra.spin=v
+    end)
+    MakeSlider(character,"VELOCIDAD DE GIRO",30,1440,CFG.extra.spinSpeed,0," g/s",function(v)
+        CFG.extra.spinSpeed=v
+    end)
+    MakeToggle(character,"ANTI AFK",CFG.extra.antiAfk,function(v)
+        CFG.extra.antiAfk=v
+        if v and not VirtualUser then
+            Notify("ANTI AFK","VirtualUser no disponible",C.dim)
+        end
+    end)
+
+    local tools=Section(content,"TOOL ASSIST")
+    MakeToggle(tools,"TOOL ASSIST (MANTENER CLIC)",CFG.extra.tool,function(v)
+        CFG.extra.tool=v
+    end)
+    MakeSelector(tools,"HERRAMIENTAS",{
+        {"AUTORIZADAS","Authorized"},
+        {"CUALQUIERA","Any"}
+    },CFG.extra.toolFilter,function(v)
+        CFG.extra.toolFilter=v
+    end)
+    MakeSlider(tools,"CADENCIA",.03,.5,CFG.extra.toolCooldown,2," s",function(v)
+        CFG.extra.toolCooldown=v
+    end)
+
+    local monitors=Section(content,"MONITORES EN PANTALLA")
+    MakeToggle(monitors,"MONITOR DE FPS",CFG.ui.fpsMonitor,function(v)
+        CFG.ui.fpsMonitor=v
+        Extra.Overlay()
+    end)
+    MakeToggle(monitors,"CONTADOR DE OBJETIVOS",CFG.ui.targetCounter,function(v)
+        CFG.ui.targetCounter=v
+        Extra.Overlay()
+    end)
+end
+
+local Presets={}
+local PRESET_FILE="STIRLAX_MODZ_PRESETS.json"
+
+function Presets.CanUseFiles()
+    return type(writefile)=="function" and type(readfile)=="function"
+end
+
+function Presets.LoadFile()
+    if not Presets.CanUseFiles() then
+        return
+    end
+    local ok,data=pcall(function()
+        if type(isfile)=="function" and not isfile(PRESET_FILE) then
+            return nil
+        end
+        return HttpService:JSONDecode(readfile(PRESET_FILE))
+    end)
+    if ok and type(data)=="table" then
+        STATE.presets=data
+    end
+end
+
+function Presets.SaveFile()
+    if not Presets.CanUseFiles() then
+        return false
+    end
+    return pcall(function()
+        writefile(PRESET_FILE,HttpService:JSONEncode(STATE.presets))
+    end)
+end
+
+function Presets.Capture()
+    local data={values={},keys={}}
+    for _,obj in ipairs(STATE.controls) do
+        if not obj.noPreset then
+            local value=obj.Get()
+            if value~=nil then
+                data.values[obj.id]=value
+            end
+        end
+    end
+    for _,obj in ipairs(STATE.keyed) do
+        if obj.keyId then
+            data.keys[obj.keyId]=obj.Key and obj.Key.Name or "NONE"
+        end
+    end
+    return data
+end
+
+function Presets.Apply(data)
+    if type(data)~="table" then
+        return false
+    end
+    STATE.muteNotify=true
+    local values=type(data.values)=="table" and data.values or {}
+    local keys=type(data.keys)=="table" and data.keys or {}
+    for pass=1,2 do
+        for _,obj in ipairs(STATE.controls) do
+            local value=values[obj.id]
+            local first=obj.applyFirst==true
+            if value~=nil and not obj.noPreset and ((pass==1)==first) then
+                SafeCall("preset "..obj.id,obj.Set,value)
+            end
+        end
+    end
+    for _,obj in ipairs(STATE.keyed) do
+        local name=obj.keyId and keys[obj.keyId]
+        if name=="NONE" then
+            obj.SetKey(nil)
+        elseif type(name)=="string" and Enum.KeyCode[name] then
+            obj.SetKey(Enum.KeyCode[name])
+        end
+    end
+    STATE.muteNotify=false
+    return true
+end
+
+function Presets.Reset()
+    STATE.muteNotify=true
+    for pass=1,2 do
+        for _,obj in ipairs(STATE.controls) do
+            local first=obj.applyFirst==true
+            if not obj.noPreset and ((pass==1)==first) then
+                SafeCall("reset "..obj.id,obj.Set,obj.Default)
+            end
+        end
+    end
+    for _,obj in ipairs(STATE.keyed) do
+        obj.SetKey(obj.DefaultKey)
+    end
+    STATE.muteNotify=false
+end
+
+local function SetPerformance(mode)
+    CFG.ui.performance=mode
+    local rate=mode=="Bajo" and 20 or mode=="Medio" and 40 or 60
+    local maxTargets=mode=="Bajo" and 15 or mode=="Medio" and 30 or 40
+    CFG.esp.rate=rate
+    CFG.esp.maxTargets=maxTargets
+    if UIX.espRate then
+        UIX.espRate.Set(rate,true)
+    end
+    if UIX.espMax then
+        UIX.espMax.Set(maxTargets,true)
+    end
+    BuildParticles()
+end
+
+do
+    STATE.buildPrefix="CONFIG"
+    local content=Content(Pages.CONFIG)
+    local menu=Section(content,"MENU Y LAUNCHER")
+    UIX.menuKey=MakeKeybind(menu,"TECLA ABRIR / CERRAR MENU",CFG.ui.menuKey,function(key)
+        CFG.ui.menuKey=key
+        LayoutLauncher()
+    end)
+    MakeToggle(menu,"LAUNCHER COMPACTO",CFG.ui.compactLauncher,function(v)
+        CFG.ui.compactLauncher=v
+        LayoutLauncher()
+    end)
+    MakeToggle(menu,"BLOQUEAR POSICION",CFG.ui.lockMenu,function(v)
+        CFG.ui.lockMenu=v
+    end)
+    MakeButton(menu,"CENTRAR MENU Y LAUNCHER","CENTRAR",function()
+        Main.Position=UDim2.fromScale(.5,.5)
+        Launcher.Position=UDim2.new(1,-(Launcher.Size.X.Offset+16),1,-(Launcher.Size.Y.Offset+20))
+        ApplyLayout()
+    end)
+
+    local look=Section(content,"APARIENCIA")
+    MakeSlider(look,"BRILLO ROJO",.1,1,CFG.ui.redGlow,2,"",function(v)
+        CFG.ui.redGlow=v
+        ApplyGlow()
+    end)
+    MakeToggle(look,"PARTICULAS",CFG.ui.particles,function(v)
+        CFG.ui.particles=v
+    end)
+    MakeSlider(look,"DENSIDAD DE PARTICULAS",10,100,CFG.ui.particleDensity,0," %",function(v)
+        CFG.ui.particleDensity=v
+        BuildParticles()
+    end)
+    MakeToggle(look,"REDUCIR MOVIMIENTO",CFG.ui.reduceMotion,function(v)
+        CFG.ui.reduceMotion=v
+    end)
+
+    local performance=Section(content,"RENDIMIENTO")
+    UIX.performance=MakeSelector(performance,"MODO DE RENDIMIENTO",{
+        {"ALTO","Alto"},
+        {"MEDIO","Medio"},
+        {"BAJO","Bajo"}
+    },CFG.ui.performance,SetPerformance)
+    UIX.performance.applyFirst=true
+
+    local alerts=Section(content,"NOTIFICACIONES Y FILTROS")
+    MakeToggle(alerts,"NOTIFICACIONES",CFG.ui.notify,function(v)
+        CFG.ui.notify=v
+    end)
+    MakeSlider(alerts,"DURACION DE AVISOS",1,6,CFG.ui.notifyTime,1," s",function(v)
+        CFG.ui.notifyTime=v
+    end)
+    MakeToggle(alerts,"IGNORAR MI EQUIPO",CFG.ui.teamCheck,function(v)
+        CFG.ui.teamCheck=v
+        STATE.targetCacheTime=0
+        Highlights.Sync()
+    end)
+
+    local presets=Section(content,"PRESETS")
+    UIX.slot=MakeSelector(presets,"RANURA",{
+        {"PRESET 1","1"},
+        {"PRESET 2","2"},
+        {"PRESET 3","3"}
+    },"1",function() end)
+    UIX.slot.noPreset=true
+    MakeButton(presets,"GUARDAR PRESET","GUARDAR",function()
+        local slot=UIX.slot.Value()
+        STATE.presets[slot]=Presets.Capture()
+        local stored=Presets.SaveFile()
+        Notify("PRESETS","Preset "..slot.." guardado"..(stored and " en archivo" or " en sesion"),C.red)
+    end)
+    MakeButton(presets,"CARGAR PRESET","CARGAR",function()
+        local slot=UIX.slot.Value()
+        local data=STATE.presets[slot]
+        if not data then
+            Notify("PRESETS","Preset "..slot.." vacio",C.dim)
+            return
+        end
+        Presets.Apply(data)
+        Notify("PRESETS","Preset "..slot.." cargado",C.red)
+    end)
+    MakeButton(presets,"RESTABLECER TODO","RESET",function()
+        Presets.Reset()
+        Notify("STIRLAX MODZ","Todo restablecido",C.red)
+    end)
+end
+
+STATE.buildPrefix=nil
+
+local function Page(name)
+    if not Pages[name] then
+        return
+    end
+    STATE.page=name
+    for pageName,page in pairs(Pages) do
+        local active=pageName==name
+        page.Visible=active
+        if active then
+            page.Position=UDim2.fromOffset(0,10)
+            Tween(page,.22,{Position=UDim2.fromOffset(0,0)})
+            local content=page:FindFirstChild("Content")
+            if content and content:IsA("ScrollingFrame") then
+                content.CanvasPosition=Vector2.zero
+            end
+        end
+    end
+    for tabName,tab in pairs(Tabs) do
+        local active=tabName==name
+        Tween(tab,.15,{BackgroundColor3=active and C.red or C.card})
+        tab.TextColor3=active and C.white or C.gray
+    end
+    local tab=Tabs[name]
+    if tab then
+        local index=tab.LayoutOrder
+        local tabWidth=tab.Size.X.Offset+5
+        local visible=TabBar.AbsoluteSize.X/math.max(MainScale.Scale,.01)
+        local target=math.max(0,(index-1)*tabWidth-(visible-tabWidth)/2)
+        TabBar.CanvasPosition=Vector2.new(target,0)
+    end
+end
+
+for name,tab in pairs(Tabs) do
+    Track(tab.Activated:Connect(function()
+        Page(name)
+    end))
+end
+
+local function CancelListening()
+    local target=STATE.listening
+    STATE.listening=nil
+    if target and target.SetKey then
+        target.SetKey(target.Key)
+    end
+end
+
+local function SetMenuOpen(open)
+    if STATE.menuBusy or not Gui.Parent then
+        return
+    end
+    STATE.menuOpen=open and true or false
+    if STATE.menuOpen then
+        ApplyLayout()
+        Main.Visible=true
+        Launcher.Visible=false
+        if CFG.ui.reduceMotion then
+            MainScale.Scale=LAYOUT.scale
+        else
+            MainScale.Scale=LAYOUT.scale*.92
+            Main.BackgroundTransparency=.4
+            Tween(MainScale,.24,{Scale=LAYOUT.scale},Enum.EasingStyle.Back)
+            Tween(Main,.24,{BackgroundTransparency=.08})
+        end
+    else
+        CancelListening()
+        STATE.menuBusy=true
+        Tween(MainScale,.16,{Scale=LAYOUT.scale*.92},Enum.EasingStyle.Quad,Enum.EasingDirection.In)
+        Tween(Main,.16,{BackgroundTransparency=.5},Enum.EasingStyle.Quad,Enum.EasingDirection.In)
+        task.delay(CFG.ui.reduceMotion and 0 or .17,function()
+            STATE.menuBusy=false
+            if not STATE.menuOpen and Main.Parent then
+                Main.Visible=false
+                MainScale.Scale=LAYOUT.scale
+                Main.BackgroundTransparency=.08
+            end
+            if Launcher.Parent then
+                Launcher.Visible=true
+                LayoutLauncher()
+            end
+        end)
+    end
+end
+
+local function SetMinimized(value)
+    STATE.minimized=value and true or false
+    MinButton.Text=STATE.minimized and "+" or "—"
+    ApplyLayout()
+end
+
+MakeDraggable(DragHandle,Main,nil)
+MakeDraggable(Launcher,Launcher,function()
+    SetMenuOpen(not STATE.menuOpen)
 end)
 
-kill.Activated:Connect(function()
-    Gui:Destroy()
+Track(MinButton.Activated:Connect(function()
+    SetMinimized(not STATE.minimized)
+end))
+
+Track(CloseButton.Activated:Connect(function()
+    SetMenuOpen(false)
+end))
+
+for _,button in ipairs({MinButton,CloseButton,KillButton}) do
+    Track(button.MouseEnter:Connect(function()
+        Tween(button,.12,{BackgroundColor3=C.hover})
+    end))
+    Track(button.MouseLeave:Connect(function()
+        Tween(button,.12,{BackgroundColor3=C.card})
+    end))
+end
+
+local Cleanup
+
+Track(KillButton.Activated:Connect(function()
+    local now=os.clock()
+    if STATE.killArmed and now-STATE.killArmed<2.5 then
+        Cleanup()
+        if Gui.Parent then
+            Gui:Destroy()
+        end
+        return
+    end
+    STATE.killArmed=now
+    KillButton.Text="SEGURO?"
+    Notify("KILL SCRIPT","Pulsa otra vez para cerrar todo",C.red)
+    task.delay(2.5,function()
+        if KillButton.Parent and STATE.killArmed==now then
+            STATE.killArmed=nil
+            KillButton.Text="KILL"
+        end
+    end)
+end))
+
+local function HandleListening(key)
+    local target=STATE.listening
+    STATE.listening=nil
+    if key==Enum.KeyCode.Escape or key==Enum.KeyCode.Backspace then
+        target.SetKey(nil)
+        return
+    end
+    if key==nil or key.Name=="Unknown" then
+        target.SetKey(target.Key)
+        return
+    end
+    if target.IsMenuKey then
+        for _,obj in ipairs(STATE.keyed) do
+            if obj.Key==key then
+                obj.SetKey(nil)
+            end
+        end
+        target.SetKey(key)
+        return
+    end
+    if CFG.ui.menuKey==key then
+        target.SetKey(target.Key)
+        Notify("TECLAS","Esa tecla abre el menu",C.dim)
+        return
+    end
+    for _,obj in ipairs(STATE.keyed) do
+        if obj~=target and obj.Key==key then
+            obj.SetKey(nil)
+        end
+    end
+    target.SetKey(key)
+end
+
+Track(UIS.InputBegan:Connect(function(input,gameProcessed)
+    if input.UserInputType==Enum.UserInputType.Keyboard then
+        local key=input.KeyCode
+        if STATE.listening then
+            SafeCall("keybind",HandleListening,key)
+            return
+        end
+        if gameProcessed or UIS:GetFocusedTextBox() then
+            return
+        end
+        if CFG.ui.menuKey and key==CFG.ui.menuKey then
+            SetMenuOpen(not STATE.menuOpen)
+            return
+        end
+        for _,obj in ipairs(STATE.keyed) do
+            if obj.Key==key then
+                SafeCall(obj.Label or "tecla",obj.Trigger)
+            end
+        end
+        return
+    end
+    if input.UserInputType==Enum.UserInputType.MouseButton1 and not gameProcessed and CFG.move.clickTp then
+        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl) then
+            SafeCall("click teleport",Move.ClickTeleport)
+        end
+    end
+end))
+
+Track(UIS.TouchStarted:Connect(function(touch)
+    STATE.touches[touch]=true
+end))
+
+Track(UIS.TouchEnded:Connect(function(touch)
+    STATE.touches[touch]=nil
+end))
+
+Track(UIS.WindowFocusReleased:Connect(function()
+    table.clear(STATE.touches)
+    STATE.flyUp=false
+    STATE.flyDown=false
+end))
+
+Track(UIS.JumpRequest:Connect(function()
+    if not CFG.move.infJump then
+        return
+    end
+    local hum=Hum()
+    if hum and hum.Health>0 then
+        pcall(function()
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end)
+    end
+end))
+
+Track(LP.Idled:Connect(function()
+    if CFG.extra.antiAfk and VirtualUser then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+    end
+end))
+
+Track(View.InputBegan:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+        drag=true
+        last=input.Position
+        STATE.viewInput=input
+    end
+end))
+
+Track(View.InputChanged:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseWheel then
+        distance=math.clamp(distance-input.Position.Z*.7,4.5,12)
+        Cam()
+    end
+end))
+
+Track(UIS.InputChanged:Connect(function(input)
+    if not drag or not last then
+        return
+    end
+    if input.UserInputType~=Enum.UserInputType.MouseMovement and input.UserInputType~=Enum.UserInputType.Touch then
+        return
+    end
+    if input.UserInputType==Enum.UserInputType.Touch and STATE.viewInput and STATE.viewInput.UserInputType==Enum.UserInputType.Touch and input~=STATE.viewInput then
+        return
+    end
+    local delta=input.Position-last
+    last=input.Position
+    yaw=yaw+delta.X*.012
+    pitch=math.clamp(pitch+delta.Y*.006,-.75,.75)
+    if Model and Model.Parent then
+        Model:PivotTo(CFrame.new(0,BaseY,0)*CFrame.Angles(pitch,yaw,0))
+        Cam()
+    end
+end))
+
+Track(UIS.InputEnded:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+        if input.UserInputType==Enum.UserInputType.Touch and STATE.viewInput and input~=STATE.viewInput then
+            return
+        end
+        drag=false
+        last=nil
+        STATE.viewInput=nil
+    end
+end))
+
+local function WatchPlayer(player)
+    Track(player.CharacterAdded:Connect(function()
+        if player==Selected and player~=LP then
+            task.wait(.5)
+            if STATE.alive and Selected==player then
+                SafeCall("perfil",Show,player)
+            end
+        end
+    end))
+end
+
+for _,player in ipairs(Players:GetPlayers()) do
+    WatchPlayer(player)
+end
+
+Track(Players.PlayerAdded:Connect(function(player)
+    WatchPlayer(player)
+    SafeCall("lista",Update)
+end))
+
+Track(Players.PlayerRemoving:Connect(function(player)
+    if player==Selected then
+        SafeCall("perfil",Show,LP)
+    end
+    task.defer(function()
+        if STATE.alive then
+            SafeCall("lista",Update)
+        end
+    end)
+end))
+
+Track(LP.CharacterAdded:Connect(function()
+    table.clear(ownStore)
+    table.clear(Move.noclipStore)
+    Move.origSpeed=nil
+    Move.origJump=nil
+    Fly.Stop()
+    task.wait(.5)
+    if not STATE.alive then
+        return
+    end
+    SafeCall("skin propia",ApplyOwn)
+    if Selected==LP then
+        SafeCall("perfil",Show,LP)
+    end
+end))
+
+pcall(function()
+    RunService:UnbindFromRenderStep("STIRLAX_MODZ_CAMERA")
+end)
+RunService:BindToRenderStep("STIRLAX_MODZ_CAMERA",Enum.RenderPriority.Camera.Value+1,function(dt)
+    SafeCall("aim assist",Engine.AimStep,dt)
+    SafeCall("camara",World.CameraStep)
 end)
 
+local overlayClock=0
+Track(RunService.RenderStepped:Connect(function(dt)
+    STATE.frames=STATE.frames+1
+    STATE.fpsTime=STATE.fpsTime+dt
+    if STATE.fpsTime>=.5 then
+        STATE.fps=math.floor(STATE.frames/STATE.fpsTime+.5)
+        STATE.frames=0
+        STATE.fpsTime=0
+    end
+    SafeCall("esp",Esp.Step)
+    SafeCall("particulas",UpdateParticles,dt)
+    overlayClock=overlayClock+dt
+    if overlayClock>=.25 then
+        overlayClock=0
+        SafeCall("monitor",Extra.Overlay)
+    end
+end))
 
-SafeCallback("inicio: página",function()
-    Page("PEOPLE")
+Track(RunService.Heartbeat:Connect(function(dt)
+    SafeCall("movimiento",Move.Step)
+    SafeCall("fly",Fly.Step,dt)
+    SafeCall("giro",Extra.Spin,dt)
+    SafeCall("tool assist",Extra.Tool)
+end))
+
+Track(RunService.Stepped:Connect(function()
+    SafeCall("noclip",Move.Noclip)
+end))
+
+local lastViewport=Viewport()
+task.spawn(function()
+    while STATE.alive and Gui.Parent do
+        SafeCall("highlights",Highlights.Sync)
+        SafeCall("mundo",World.Apply)
+        SafeCall("fly pad",Fly.UpdatePad)
+        local viewport=Viewport()
+        if (viewport-lastViewport).Magnitude>2 then
+            lastViewport=viewport
+            SafeCall("layout",ApplyLayout)
+            SafeCall("particulas",BuildParticles)
+        end
+        task.wait(.5)
+    end
 end)
-SafeCallback("inicio: perfil",function()
-    Show(LP)
+
+local cleaned=false
+Cleanup=function()
+    if cleaned then
+        return
+    end
+    cleaned=true
+    STATE.alive=false
+    STATE.menuOpen=false
+    pcall(function()
+        RunService:UnbindFromRenderStep("STIRLAX_MODZ_CAMERA")
+    end)
+    for _,connection in ipairs(STATE.conns) do
+        pcall(function()
+            connection:Disconnect()
+        end)
+    end
+    table.clear(STATE.conns)
+    pcall(Esp.Clear)
+    pcall(Highlights.Clear)
+    pcall(World.Restore)
+    pcall(World.SetFade,false)
+    CFG.world.camFov=false
+    pcall(World.CameraStep)
+    CFG.world.zoom=false
+    pcall(World.ApplyZoom)
+    CFG.move.fly=false
+    pcall(Fly.Stop)
+    pcall(Move.Restore)
+    pcall(Restore,ownStore)
+    pcall(Restore,previewStore)
+    CFG.aim.enabled=false
+    if type(ENV)=="table" and ENV.STIRLAX_MODZ_KILL then
+        ENV.STIRLAX_MODZ_KILL=nil
+    end
+end
+
+if type(ENV)=="table" then
+    ENV.STIRLAX_MODZ_KILL=function()
+        Cleanup()
+        if Gui.Parent then
+            Gui:Destroy()
+        end
+    end
+end
+
+Gui.Destroying:Connect(function()
+    Cleanup()
 end)
-SafeCallback("inicio: lista",function()
-    Update()
-end)
-SafeCallback("inicio: skin",function()
-    SelectSkin("normal")
-end)
-SafeCallback("inicio: fov",function()
-    UpdateFov()
-end)
+
+Presets.LoadFile()
+SafeCall("inicio: layout",ApplyLayout)
+SafeCall("inicio: particulas",BuildParticles)
+SafeCall("inicio: brillo",ApplyGlow)
+SafeCall("inicio: pagina",Page,"PEOPLE")
+SafeCall("inicio: perfil",Show,LP)
+SafeCall("inicio: lista",Update)
+SafeCall("inicio: skin",SelectSkin,"normal")
+SafeCall("inicio: launcher",LayoutLauncher)
+SafeCall("inicio: fly pad",Fly.UpdatePad)
+Launcher.Visible=false
+SetMenuOpen(true)
+Notify("STIRLAX MODZ",STATE.mobile and "Listo. Usa el launcher para abrir y cerrar" or ("Listo. Tecla del menu: "..KeyName(CFG.ui.menuKey)),C.red)
