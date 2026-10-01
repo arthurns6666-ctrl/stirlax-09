@@ -88,7 +88,8 @@ local CFG={
         menuKey=Enum.KeyCode.RightShift,
         fpsMonitor=false,
         targetCounter=false,
-        teamCheck=false
+        teamCheck=false,
+        includePlayers=true
     },
     aim={
         enabled=false,
@@ -114,13 +115,17 @@ local CFG={
         tracers=false,
         tracerOrigin="Bottom",
         arrows=false,
+        gradient=false,
         xray=false,
         outline=false,
         hpColor=true,
         wall=false,
         range=1500,
         thickness=1.5,
+        lineOpacity=.9,
         boxScale=1,
+        healthPosition="Left",
+        healthDisplay="Value",
         xrayFill=.55,
         rate=60,
         maxTargets=40
@@ -610,7 +615,7 @@ local PAGE_TITLE={
 local PAGE_DESC={
     PEOPLE="Lista de jugadores, perfil 3D, ropa y herramientas visibles.",
     AIM="Asistencia de camara local hacia objetivos autorizados. Fuerza 1.00 = respuesta instantanea.",
-    ESP="Cada elemento se activa por separado. Solo modelos en workspace.Targets o con etiqueta Target.",
+    ESP="Cada elemento se activa por separado para jugadores y objetivos autorizados.",
     MOVE="Velocidad, saltos, vuelo estable, noclip, gravedad y teletransporte.",
     WORLD="Iluminacion, niebla, sombras, hora, campo de vision, zoom y transparencia del mapa.",
     SKINS="Skins locales para tu personaje y para la vista previa 3D.",
@@ -2164,6 +2169,13 @@ function Engine.Targets()
             addFromInstance(instance,nil)
         end
     end
+    if CFG.ui.includePlayers then
+        for _,player in ipairs(Players:GetPlayers()) do
+            if player~=LP and player.Character then
+                add(player.Character)
+            end
+        end
+    end
     STATE.targetCache=output
     STATE.targetCacheTime=now
     STATE.targetCount=#output
@@ -2443,7 +2455,8 @@ function Esp.New()
     e.hpText.TextStrokeTransparency=.15
     e.hpText.Visible=false
     e.hpText.ZIndex=5
-    e.tracer=N("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=C.red,BorderSizePixel=0,Visible=false,ZIndex=2,Parent=EspLayer})
+    e.tracer=N("Frame",{AnchorPoint=Vector2.new(.5,.5),BackgroundColor3=C.red,BackgroundTransparency=1-CFG.esp.lineOpacity,BorderSizePixel=0,Visible=false,ZIndex=2,Parent=EspLayer})
+    e.tracerGradient=N("UIGradient",{Color=ColorSequence.new(C.red,C.black),Rotation=0,Enabled=false,Parent=e.tracer})
     e.arrow=T(EspLayer,"▲",UDim2.fromOffset(24,24),nil,18,C.red,Enum.Font.GothamBlack)
     e.arrow.AnchorPoint=Vector2.new(.5,.5)
     e.arrow.TextXAlignment=Enum.TextXAlignment.Center
@@ -2627,12 +2640,16 @@ function Esp.Step()
                         if esp.boxStyle=="Corners" then
                             e.box.Visible=false
                             Esp.Corners(e,left,top,width,height,esp.thickness,color)
+                            for _,corner in ipairs(e.corners) do
+                                corner.BackgroundTransparency=1-esp.lineOpacity
+                            end
                         else
                             Esp.HideCorners(e)
                             e.box.Position=UDim2.fromOffset(left,top)
                             e.box.Size=UDim2.fromOffset(width,height)
                             e.stroke.Color=color
                             e.stroke.Thickness=esp.thickness
+                            e.stroke.Transparency=1-esp.lineOpacity
                             e.box.Visible=true
                         end
                     else
@@ -2655,19 +2672,32 @@ function Esp.Step()
                     else
                         e.dist.Visible=false
                     end
-                    local barWidth=math.clamp(math.floor(height*.035+.5),2,4)
+                    local barWidth=math.clamp(height/100,3,5)
+                    local barHeight=math.clamp(height*.72,18,120)
                     if esp.health then
-                        e.hpBack.Position=UDim2.fromOffset(left-barWidth-4,top)
-                        e.hpBack.Size=UDim2.fromOffset(barWidth,height)
-                        e.hpFill.Size=UDim2.fromScale(1,fraction)
+                        if esp.healthPosition=="Top" or esp.healthPosition=="Bottom" then
+                            e.hpBack.AnchorPoint=Vector2.new(.5,.5)
+                            e.hpBack.Size=UDim2.fromOffset(width+2,barWidth+2)
+                            e.hpBack.Position=UDim2.new(.5,0,esp.healthPosition=="Top" and 0 or 1,esp.healthPosition=="Top" and -8 or 8)
+                            e.hpFill.AnchorPoint=Vector2.new(0,.5)
+                            e.hpFill.Position=UDim2.new(0,1,.5,0)
+                            e.hpFill.Size=UDim2.new(math.max(.02,fraction),-2,1,-2)
+                        else
+                            e.hpBack.AnchorPoint=Vector2.new(0,.5)
+                            e.hpBack.Position=UDim2.fromOffset(esp.healthPosition=="Right" and left+width+8 or left-barWidth-6,top+height*.5)
+                            e.hpBack.Size=UDim2.fromOffset(barWidth+2,barHeight+2)
+                            e.hpFill.AnchorPoint=Vector2.new(.5,1)
+                            e.hpFill.Position=UDim2.new(.5,0,1,-1)
+                            e.hpFill.Size=UDim2.new(1,-2,0,math.max(2,barHeight*fraction))
+                        end
                         e.hpFill.BackgroundColor3=Color3.fromHSV(fraction*.33,.85,1)
                         e.hpBack.Visible=true
                     else
                         e.hpBack.Visible=false
                     end
                     if esp.healthText and hum then
-                        e.hpText.Text=tostring(math.floor(hum.Health+.5))
-                        e.hpText.Position=UDim2.fromOffset(left-barWidth-7,top+height*(1-fraction))
+                        e.hpText.Text=esp.healthDisplay=="Percent" and (tostring(math.floor(fraction*100+.5)).."%") or (tostring(math.floor(hum.Health+.5)).." / "..tostring(math.floor(hum.MaxHealth+.5)))
+                        e.hpText.Position=UDim2.fromOffset(esp.healthPosition=="Right" and left+width+barWidth+10 or left-barWidth-10,top+height*(1-fraction))
                         e.hpText.TextColor3=Color3.fromHSV(fraction*.33,.85,1)
                         e.hpText.Visible=true
                     else
@@ -2692,6 +2722,9 @@ function Esp.Step()
                         e.tracer.Position=UDim2.fromOffset(middle.X,middle.Y)
                         e.tracer.Rotation=math.deg(math.atan2(delta.Y,delta.X))
                         e.tracer.BackgroundColor3=color
+                        e.tracer.BackgroundTransparency=1-esp.lineOpacity
+                        e.tracerGradient.Color=ColorSequence.new(color,C.black)
+                        e.tracerGradient.Enabled=esp.gradient
                         e.tracer.Visible=true
                     else
                         e.tracer.Visible=false
@@ -3429,6 +3462,26 @@ do
     MakeToggle(style,"COLOR SEGUN VIDA",CFG.esp.hpColor,function(v)
         CFG.esp.hpColor=v
     end)
+    MakeSelector(style,"POSICION DE VIDA",{
+        {"IZQUIERDA","Left"},
+        {"DERECHA","Right"},
+        {"ARRIBA","Top"},
+        {"ABAJO","Bottom"}
+    },CFG.esp.healthPosition,function(v)
+        CFG.esp.healthPosition=v
+    end)
+    MakeSelector(style,"FORMATO DE VIDA",{
+        {"VALOR","Value"},
+        {"PORCENTAJE","Percent"}
+    },CFG.esp.healthDisplay,function(v)
+        CFG.esp.healthDisplay=v
+    end)
+    MakeSlider(style,"OPACIDAD DE LINEAS",.2,1,CFG.esp.lineOpacity,2,"",function(v)
+        CFG.esp.lineOpacity=v
+    end)
+    MakeToggle(style,"DEGRADADO DE TRACERS",CFG.esp.gradient,function(v)
+        CFG.esp.gradient=v
+    end)
 
     local filters=Section(content,"FILTROS Y RENDIMIENTO")
     MakeSlider(filters,"DISTANCIA MAXIMA",100,5000,CFG.esp.range,0," st",function(v)
@@ -3436,6 +3489,11 @@ do
     end)
     MakeToggle(filters,"SOLO VISIBLES (PAREDES)",CFG.esp.wall,function(v)
         CFG.esp.wall=v
+    end)
+    MakeToggle(filters,"INCLUIR JUGADORES",CFG.ui.includePlayers,function(v)
+        CFG.ui.includePlayers=v
+        STATE.targetCacheTime=0
+        Esp.Clear()
     end)
     UIX.espRate=MakeSlider(filters,"ACTUALIZACIONES POR SEG",10,120,CFG.esp.rate,0," /s",function(v)
         CFG.esp.rate=v
