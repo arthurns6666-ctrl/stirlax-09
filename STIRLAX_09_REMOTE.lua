@@ -27,6 +27,7 @@ local ADMIN_USERNAMES={
 }
 
 if not ADMIN_USERNAMES[LP.Name:lower()] then
+    warn("[09] Usuario no autorizado: "..LP.Name..". Cuenta permitida: gian12_10")
     return
 end
 
