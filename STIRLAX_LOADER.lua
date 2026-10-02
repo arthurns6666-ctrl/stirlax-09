@@ -1,4 +1,4 @@
-local URL="https://raw.githubusercontent.com/arthurns6666-ctrl/stirlax-09/b3f12da701146c8bf454fa01bf58b9bf419b661a/STIRLAX_09_REMOTE.lua"
+local URL="https://raw.githubusercontent.com/arthurns6666-ctrl/stirlax-09/c3fc0f19795fc3f100ca30196f36111aa024ba4c/STIRLAX_09_REMOTE.lua"
 
 local function report(message)
     if type(warn)=="function" then
