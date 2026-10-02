@@ -812,19 +812,19 @@ end
 
 local function ApplyLayout()
     local vp=Viewport()
-    local touch=UIS.TouchEnabled and not UIS.KeyboardEnabled
+    local touch=UIS.TouchEnabled and (not UIS.MouseEnabled or vp.X<1200)
     STATE.mobile=touch or vp.X<780 or vp.Y<500
     local width,height,scale
     if STATE.mobile then
-        width=math.floor(math.clamp(vp.X-12,260,860))
-        height=math.floor(math.clamp(vp.Y-12,220,620))
+        width=math.floor(math.clamp(vp.X-28,320,1080))
+        height=math.floor(math.clamp(vp.Y-28,300,700))
         scale=1
     else
         width,height=940,580
         scale=math.clamp(math.min((vp.X-40)/width,(vp.Y-40)/height),.62,1)
     end
-    local twoRows=STATE.mobile and width<620
-    local headerHeight=twoRows and 92 or (STATE.mobile and 50 or 60)
+    local twoRows=STATE.mobile
+    local headerHeight=twoRows and 88 or 60
     LAYOUT.width=width
     LAYOUT.height=height
     LAYOUT.header=headerHeight
@@ -843,10 +843,10 @@ local function ApplyLayout()
     Body.Size=UDim2.new(1,-24,1,-(headerHeight+32))
     Body.Visible=not STATE.minimized
 
-    local buttonSize=STATE.mobile and 36 or 32
-    local killWidth=STATE.mobile and 58 or 70
+    local buttonSize=STATE.mobile and (width<440 and 30 or 34) or 32
+    local killWidth=STATE.mobile and (width<440 and 48 or 58) or 70
     local headerWidth=width-24
-    local topRowY=STATE.mobile and 7 or 14
+    local topRowY=STATE.mobile and 6 or 14
     KillButton.Size=UDim2.fromOffset(killWidth,buttonSize)
     KillButton.Position=UDim2.new(1,-(killWidth+8),0,topRowY)
     CloseButton.Size=UDim2.fromOffset(buttonSize,buttonSize)
@@ -856,22 +856,18 @@ local function ApplyLayout()
     local buttonsWidth=killWidth+8+(buttonSize+6)*2+8
 
     if STATE.mobile then
-        Logo.Size=UDim2.fromOffset(36,36)
-        Logo.Position=UDim2.fromOffset(8,7)
-        LogoText.TextSize=18
-        TitleLabel.Position=UDim2.fromOffset(52,7)
-        TitleLabel.Size=UDim2.fromOffset(130,20)
-        TitleLabel.TextSize=15
-        SubLabel.Position=UDim2.fromOffset(52,27)
-        SubLabel.Size=UDim2.fromOffset(130,14)
-        SubLabel.TextSize=9
-        if twoRows then
-            TabBar.Position=UDim2.fromOffset(8,52)
-            TabBar.Size=UDim2.fromOffset(headerWidth-16,36)
-        else
-            TabBar.Position=UDim2.fromOffset(190,7)
-            TabBar.Size=UDim2.fromOffset(math.max(120,headerWidth-190-buttonsWidth),36)
-        end
+        local compactHeader=width<440
+        Logo.Size=UDim2.fromOffset(compactHeader and 32 or 36,compactHeader and 32 or 36)
+        Logo.Position=UDim2.fromOffset(8,compactHeader and 8 or 7)
+        LogoText.TextSize=compactHeader and 16 or 18
+        TitleLabel.Position=UDim2.fromOffset(compactHeader and 46 or 52,6)
+        TitleLabel.Size=UDim2.fromOffset(compactHeader and 112 or 150,20)
+        TitleLabel.TextSize=compactHeader and 13 or 15
+        SubLabel.Position=UDim2.fromOffset(compactHeader and 46 or 52,27)
+        SubLabel.Size=UDim2.fromOffset(compactHeader and 112 or 150,14)
+        SubLabel.TextSize=compactHeader and 8 or 9
+        TabBar.Position=UDim2.fromOffset(8,48)
+        TabBar.Size=UDim2.fromOffset(headerWidth-16,34)
     else
         Logo.Size=UDim2.fromOffset(44,44)
         Logo.Position=UDim2.fromOffset(10,8)
@@ -958,8 +954,11 @@ local function MakeDraggable(handle,target,onTap)
         end
         if moved and not CFG.ui.lockMenu then
             local vp=Viewport()
-            local x=math.clamp(startPos.X+delta.X,0,vp.X)
-            local y=math.clamp(startPos.Y+delta.Y,0,vp.Y)
+            local targetSize=target.AbsoluteSize
+            local maxX=math.max(4,vp.X-targetSize.X-4)
+            local maxY=math.max(4,vp.Y-targetSize.Y-4)
+            local x=math.clamp(startPos.X+delta.X,4,maxX)
+            local y=math.clamp(startPos.Y+delta.Y,4,maxY)
             target.Position=UDim2.fromOffset(x,y)
         end
     end))
@@ -4000,6 +3999,8 @@ local function SetMenuOpen(open)
     end
     STATE.menuOpen=open and true or false
     if STATE.menuOpen then
+        STATE.minimized=false
+        MinButton.Text="—"
         ApplyLayout()
         Main.Visible=true
         Launcher.Visible=false
