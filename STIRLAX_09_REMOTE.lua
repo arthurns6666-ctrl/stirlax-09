@@ -174,7 +174,7 @@ local STATE={
     menuOpen=false,
     menuBusy=false,
     minimized=false,
-    mobile=false,
+    mobile=true,
     fps=0,
     frames=0,
     fpsTime=0,
@@ -766,12 +766,12 @@ local function ApplyGlow()
 end
 
 local LAYOUT={
-    width=940,
-    height=580,
-    header=60,
-    cardHeight=54,
-    columns=2,
-    cellWidth=430,
+    width=360,
+    height=640,
+    header=88,
+    cardHeight=62,
+    columns=1,
+    cellWidth=320,
     scale=1
 }
 
@@ -794,12 +794,12 @@ local function LayoutLauncher()
         LauncherTitle.Visible=false
         LauncherSub.Visible=false
     else
-        local width=STATE.mobile and 160 or 190
+        local width=150
         Launcher.Size=UDim2.fromOffset(width,50)
         LauncherDot.Position=UDim2.fromOffset(8,8)
         LauncherTitle.Visible=true
         LauncherSub.Visible=true
-        LauncherSub.Text=STATE.mobile and "TOCA PARA ABRIR" or "CLIC O "..(CFG.ui.menuKey and CFG.ui.menuKey.Name:upper() or "SIN TECLA")
+        LauncherSub.Text="TOCA PARA ABRIR"
     end
     local pos=Launcher.Position
     local size=Launcher.Size
@@ -812,23 +812,15 @@ end
 
 local function ApplyLayout()
     local vp=Viewport()
-    local touch=UIS.TouchEnabled and (not UIS.MouseEnabled or vp.X<1200)
-    STATE.mobile=touch or vp.X<780 or vp.Y<500
-    local width,height,scale
-    if STATE.mobile then
-        width=math.floor(math.clamp(vp.X-28,320,1080))
-        height=math.floor(math.clamp(vp.Y-28,300,700))
-        scale=1
-    else
-        width,height=940,580
-        scale=math.clamp(math.min((vp.X-40)/width,(vp.Y-40)/height),.62,1)
-    end
-    local twoRows=STATE.mobile
-    local headerHeight=twoRows and 88 or 60
+    STATE.mobile=true
+    local width=math.floor(math.min(560,math.max(220,vp.X-16)))
+    local height=math.floor(math.min(760,math.max(300,vp.Y-16)))
+    local scale=1
+    local headerHeight=88
     LAYOUT.width=width
     LAYOUT.height=height
     LAYOUT.header=headerHeight
-    LAYOUT.cardHeight=STATE.mobile and (width<360 and 68 or 62) or 54
+    LAYOUT.cardHeight=width<360 and 68 or 62
     LAYOUT.scale=scale
     MainScale.Scale=scale
     if STATE.flyPadAuto then
@@ -843,67 +835,51 @@ local function ApplyLayout()
     Body.Size=UDim2.new(1,-24,1,-(headerHeight+32))
     Body.Visible=not STATE.minimized
 
-    local buttonSize=STATE.mobile and (width<440 and 30 or 34) or 32
-    local killWidth=STATE.mobile and (width<440 and 48 or 58) or 70
+    local buttonSize=width<440 and 30 or 34
+    local killWidth=width<440 and 48 or 58
     local headerWidth=width-24
-    local topRowY=STATE.mobile and 6 or 14
+    local topRowY=6
     KillButton.Size=UDim2.fromOffset(killWidth,buttonSize)
     KillButton.Position=UDim2.new(1,-(killWidth+8),0,topRowY)
     CloseButton.Size=UDim2.fromOffset(buttonSize,buttonSize)
     CloseButton.Position=UDim2.new(1,-(killWidth+8+buttonSize+6),0,topRowY)
     MinButton.Size=UDim2.fromOffset(buttonSize,buttonSize)
     MinButton.Position=UDim2.new(1,-(killWidth+8+(buttonSize+6)*2),0,topRowY)
-    local buttonsWidth=killWidth+8+(buttonSize+6)*2+8
 
-    if STATE.mobile then
-        local compactHeader=width<440
-        Logo.Size=UDim2.fromOffset(compactHeader and 32 or 36,compactHeader and 32 or 36)
-        Logo.Position=UDim2.fromOffset(8,compactHeader and 8 or 7)
-        LogoText.TextSize=compactHeader and 16 or 18
-        TitleLabel.Position=UDim2.fromOffset(compactHeader and 46 or 52,6)
-        TitleLabel.Size=UDim2.fromOffset(compactHeader and 112 or 150,20)
-        TitleLabel.TextSize=compactHeader and 13 or 15
-        SubLabel.Position=UDim2.fromOffset(compactHeader and 46 or 52,27)
-        SubLabel.Size=UDim2.fromOffset(compactHeader and 112 or 150,14)
-        SubLabel.TextSize=compactHeader and 8 or 9
-        TabBar.Position=UDim2.fromOffset(8,48)
-        TabBar.Size=UDim2.fromOffset(headerWidth-16,34)
-    else
-        Logo.Size=UDim2.fromOffset(44,44)
-        Logo.Position=UDim2.fromOffset(10,8)
-        LogoText.TextSize=22
-        TitleLabel.Position=UDim2.fromOffset(64,8)
-        TitleLabel.Size=UDim2.fromOffset(150,24)
-        TitleLabel.TextSize=18
-        SubLabel.Position=UDim2.fromOffset(64,33)
-        SubLabel.Size=UDim2.fromOffset(150,16)
-        SubLabel.TextSize=10
-        TabBar.Position=UDim2.fromOffset(222,13)
-        TabBar.Size=UDim2.fromOffset(math.max(200,headerWidth-222-buttonsWidth),34)
-    end
+    local compactHeader=width<440
+    Logo.Size=UDim2.fromOffset(compactHeader and 32 or 36,compactHeader and 32 or 36)
+    Logo.Position=UDim2.fromOffset(8,compactHeader and 8 or 7)
+    LogoText.TextSize=compactHeader and 16 or 18
+    TitleLabel.Position=UDim2.fromOffset(compactHeader and 46 or 52,6)
+    TitleLabel.Size=UDim2.fromOffset(compactHeader and 112 or 150,20)
+    TitleLabel.TextSize=compactHeader and 13 or 15
+    SubLabel.Position=UDim2.fromOffset(compactHeader and 46 or 52,27)
+    SubLabel.Size=UDim2.fromOffset(compactHeader and 112 or 150,14)
+    SubLabel.TextSize=compactHeader and 8 or 9
+    TabBar.Position=UDim2.fromOffset(8,48)
+    TabBar.Size=UDim2.fromOffset(headerWidth-16,34)
 
-    local tabWidth=STATE.mobile and 74 or 62
-    local tabHeight=STATE.mobile and 34 or 30
+    local tabWidth=74
+    local tabHeight=34
     for _,tab in pairs(Tabs) do
         tab.Size=UDim2.fromOffset(tabWidth,tabHeight)
-        tab.TextSize=STATE.mobile and 11 or 10
+        tab.TextSize=11
     end
     TabBar.CanvasSize=UDim2.fromOffset(#PAGE_ORDER*(tabWidth+5)+4,0)
 
     for name,title in pairs(PageTitles) do
-        title.TextSize=STATE.mobile and 16 or 20
-        title.Size=UDim2.new(1,-36,0,STATE.mobile and 20 or 24)
-        title.Position=UDim2.fromOffset(16,STATE.mobile and 8 or 10)
+        title.TextSize=16
+        title.Size=UDim2.new(1,-36,0,20)
+        title.Position=UDim2.fromOffset(16,8)
         local desc=PageDescs[name]
-        desc.Visible=not (STATE.mobile and height<330)
-        desc.Position=UDim2.fromOffset(16,STATE.mobile and 29 or 36)
-        desc.TextSize=STATE.mobile and 9 or 10
+        desc.Visible=height>=330
+        desc.Position=UDim2.fromOffset(16,29)
+        desc.TextSize=9
     end
 
     local contentWidth=width-24-28-10
-    local columns=contentWidth>=620 and 2 or 1
-    LAYOUT.columns=columns
-    LAYOUT.cellWidth=math.floor((contentWidth-(columns-1)*10)/columns)
+    LAYOUT.columns=1
+    LAYOUT.cellWidth=math.max(180,math.floor(contentWidth))
 
     for _,hook in ipairs(STATE.layoutHooks) do
         SafeCall("layout",hook)
@@ -2279,13 +2255,13 @@ function Engine.AimActive()
         return true
     end
     if mode=="Hold" then
-        if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+        if UIS.TouchEnabled then
             return next(STATE.touches)~=nil
         end
         return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
     end
     if mode=="HoldAny" then
-        if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+        if UIS.TouchEnabled then
             return next(STATE.touches)~=nil
         end
         return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) or UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
